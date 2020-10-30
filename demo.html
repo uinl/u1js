@@ -1,0 +1,237 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta charset="utf-8"/>
+<html><head>
+
+<!-- <script type="text/javascript" src="https://cdnjs.cloudflare…s/gsap/3.2.6/gsap.min.js"> -->
+<!-- <script src="gsap.min.js"> -->
+<script src="u1.js"></script>
+<script>
+
+logToConsole();
+
+var SAMPLE_CODE = new Map([
+
+	['text', `[
+ "Hello World!",
+ "UINL container is just a list of item declarations",
+ {"id":"More Text","v":[
+  "here's more text",
+  "there's more text"
+ ]}
+]`],
+
+	['buttons', `[
+ {"id":"Press me","C":"btn"},
+ {"id":"No, press me","C":"btn"}
+]`],
+
+	['numbers and time', `[
+  {"title":"numeric items:","v":[
+    1,2,3,9e99,-9e99,{"C":"num","v":""}]},
+  {"title":"numeric items can be formatted as datetime, rounded to non-wholes, and animated","v":[
+    {"id":"your money","v":0,"+v":{"vy":1,"to":120},
+     "rnd":0.25,"unit":"$"},
+    {"id":"your time","v":120,"+v":{"vy":-1,"to":0},
+     "rnd":0.1,"unit":":ms."}
+  ]}
+]`],
+
+	['container w/ checkboxes', `[
+ {
+  "id":"Choose cars",
+  "df":{"C":"select"},
+  "v":[
+   {"id":"Subaru"},
+   {"id":"Ford"},
+   {"id":"Tesla"}
+  ]
+ }
+]`],
+
+	['container w/ radio buttons', `[
+ {
+  "id":"Choose a car",
+  "df":{"C":"select","group":"cars"},
+  "v":[
+   {"id":"Subaru"},
+   {"id":"Ford"},
+   {"id":"Tesla"}
+  ]
+ }
+]`],
+
+	['table', `[
+ {
+  "id":"Personnel",
+  "C":"table",
+  "head":1,
+  "df":{
+    "group":"wrk",
+    "rnd":0.01,
+    "unit":"$"
+  },
+  "v":[
+   ["Name","Gender","Salary","Working this week"],
+   {"id":"P801","v":["Max Brownwell","female",22.75,{"C":"select"}]},
+   {"id":"P807","v":["Carrie Vanilla","male",22,{"C":"select"}]},
+   {"id":"P811","v":["Jenny Jerrings","female",21,{"C":"select"}]},
+   {"id":"P832","v":["Jerry Jennings","male",21,{"C":"select"}]}
+  ]
+ },
+ "there are several UI component classes in UINL, including table, popup, mkdn, and html"
+]`],
+
+	<!-- ['shapes', `[ -->
+ <!-- { -->
+  <!-- "df":{"w":130,"h":40,"v":"some text"}, -->
+  <!-- "v":[ -->
+   <!-- {"shp":"box","tag":[0]}, -->
+   <!-- {"shp":"round","tag":[1]}, -->
+   <!-- {"shp":"pill","tag":[2]}, -->
+   <!-- {"shp":"M0,100 25,0 75,0 100,100z","tag":[3]} -->
+  <!-- ] -->
+ <!-- } -->
+<!-- ]`], -->
+
+	['animation', `[
+ {"h":100,"w":200,"v":[
+   {"w":15,"h":15,"shp":1,"tag":[0],
+    "+x":{"to":[183,0],"vy":80,"ta":-10},
+    "+y":{"to":83,"ta":300,"te":-0.5,"tu":10}}
+  ]
+ }
+]`],
+
+	<!-- ['lines and axes',`[ -->
+ <!-- {"id":"some data", -->
+  <!-- "w":200,"h":200,"iw":300,"ih":20, -->
+  <!-- "axisx":{"title":"times","unit":":ms","rnd":60}, -->
+  <!-- "axisy":{"title":"scores","min":-10,"max":10}, -->
+  <!-- "df":{"w":7,"h":0.5,"col":3,"cc":3,"bb":2}, -->
+  <!-- "v":[ -->
+   <!-- {"x":0,"y":10}, -->
+   <!-- {"x":60,"y":15}, -->
+   <!-- {"x":120,"y":13}, -->
+   <!-- {"x":180,"y":5}, -->
+   <!-- {"x":240,"y":1}, -->
+   <!-- {"C":"l","ln":{}} -->
+  <!-- ] -->
+ <!-- } -->
+<!-- ]`], -->
+
+	['lines and axes',`[
+ {"id":"some data",
+  "w":200,"h":200,"iw":300,"ih":20,
+  "axisx":{"title":"times","unit":":ms","rnd":60},
+  "axisy":{"title":"scores","min":-10,"max":10},
+  "df":{"w":8,"h":0.5,"cc":3,"bb":2},
+  "v":[
+   {"x":0,"y":10,"tag":["series1"]},
+   {"x":60,"y":15,"tag":["series1"]},
+   {"x":120,"y":13,"tag":["series1"]},
+   {"x":180,"y":5,"tag":["series1"]},
+   {"x":240,"y":1,"tag":["series1"]},
+   {"x":0,"y":12,"tag":["series2"]},
+   {"x":60,"y":14,"tag":["series2"]},
+   {"x":120,"y":10,"tag":["series2"]},
+   {"x":180,"y":9,"tag":["series2"]},
+   {"x":240,"y":8,"tag":["series2"]},
+   {"C":"l","tag":["series1"]},
+   {"C":"l","tag":["series2"]}
+  ]
+ }
+]`],
+
+	<!-- ['collision physics',`[ -->
+ <!-- "UINL provides properties for setting item directional velocity (vx/vy) and acceleration rates (ax/ay), non-directional deceleration rates (i.e., resistance; dx/dy), mass (mass), and kinetic energy loss upon impact (i.e., inelasticity; kl).", -->
+ <!-- { -->
+  <!-- "h":100,"lw":0.5,"kl":0.2,"df":{"dx":4,"ay":300,"kl":0.2}, -->
+  <!-- "v":[ -->
+   <!-- {"shp":"round","col":2,"x":20,"y":10,"w":20,"h":20, -->
+    <!-- "vx":25,"vy":25} -->
+  <!-- ] -->
+ <!-- } -->
+<!-- ]`], -->
+
+	<!-- ['info',`[ -->
+ <!-- {"id":"time","C":"txt","v":{"@":"time"}}, -->
+ <!-- {"id":"client-side software","C":"txt","v":{"@":"userAgent"}}, -->
+ <!-- {"id":"URL","C":"txt","v":{"@":"url"}}, -->
+ <!-- {"id":"IP","C":"txt","v":{"@":"ip"}}, -->
+ <!-- {"id":"client-side screen settings","C":"txt","v":{"@":"screen"}} -->
+<!-- ]`], -->
+
+
+]);
+
+
+
+
+var app = {
+	
+	start: function(){
+		app.display({
+			title:'UINL demo',
+			require:{C:['table','select','mkdn'],shp:[]},
+			style:`
+				#Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray;padding:5px}
+				#Warning {text-align:right}
+				#Warning * {display:inline}
+				
+				.series1 {--rotate:45deg !important;background-color:#fa8;border-width:0px;stroke:#da8}
+				.series2 {border-radius:100%;background-color:#8af;border-width:0px;stroke:#8ad}
+			`
+		});
+		app.display([
+			{id:"Preview"},
+			{id:"Sample Code"},
+			{id:"UINL",v:"\n",in:1,on:{v:[]},throt:{v:1000}}
+		]);
+		for(var i of SAMPLE_CODE.keys())
+			app.display([{_:"Sample Code",v:[{id:i,C:'btn'}]}]);
+	},
+	
+	userAction: function(msg){
+		var element=msg._,value=msg.v,uinl;
+		//TODO: ignore input, catch onkeydown
+		app.display([{_:'Warning',v:null}]); //remove any previously shown warning
+		if(element=='UINL'){
+			if(value && value.constructor===Array)value=value[0];
+			try{
+				uinl=JSON.parse(value);
+				value=JSON.stringify(uinl);
+				if(value!==app.lastValue){
+					app.lastValue=value;
+					if(uinl.constructor===Array){
+						app.display([{_:'Preview',v:null},{id:'Preview',i:0,v:uinl}]);
+					}else if(value.constructor===Object){
+						value.id='Preview';
+						value.i=0;
+						app.display([{_:'Preview',v:null},uinl]);
+					}
+				}
+			}catch(e){
+				if(e.message.includes('JSON'))
+					app.display([{id:'Warning',v:'Invalid JSON string',c:2}]);
+				else
+					throw(e);
+			}
+		}else if(SAMPLE_CODE.has(element)){
+			value=JSON.parse(SAMPLE_CODE.get(element));
+			app.lastValue=JSON.stringify(value);
+			if(value.constructor===Array){
+				app.display([{_:'UINL',v:SAMPLE_CODE.get(element)},{_:'Preview',v:null},{id:'Preview',i:0,v:value}]);
+			}else if(value.constructor===Object){
+				value.id='Preview';
+				value.i=0;
+				app.display([{_:'UINL',v:SAMPLE_CODE.get(element)},{_:'Preview',v:null},value]);
+			}
+		}
+	}
+	
+}
+
+</script>
+</head><body /></html>
