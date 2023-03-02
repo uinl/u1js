@@ -1,4 +1,4 @@
-/*u1js -- in-browser interpreter for UINL v1.0
+/*u1js -- in-browser interpreter for UINL v1.1
 
 	What is UINL?
 		UINL is a toolkit-independent language for describing UI updates and interactions.
@@ -11,39 +11,109 @@
 			UINL does not require for all features to be implemented in UI software.
 			Any features that are required by app-side software (i.e., declared via the "require" command)
 				that are not implemented will raise an error (i.e. will send {!:Error...} message).
-			This is a list of UINL properties and property-values that are not yet implemented:
-				>>, A, task, chmax, mark, dfcols, at, play, hash, throt, keymod, overlap,
-				+sx, +sy, +rot, +iw, +ih, +cw, +ch,
-				C: [ private, pie, media, url, one ],
-				man: [ i, null, x, y, rot, dp, z, rx, ry ],
-				on: [ mb,mc2,mcc2,md2,mu2,d,dd,du,e,ed,eu,f,fd,fu,g,ga,gb,copy,cut,paste,ended ],
-				R: [ mbuf,ipoly,selected,avdesc,avset,dxys,exys,fxys,gamepad,gid,gbtns,gaxes ]
-			Additionally, UINL 3D context options are not a part of u1js:
-				dp, idp, cdp, bb:[4,5,6,7], cc:[4,5,6,7], sz, rx, ry, axisz
-				+dp, +z, +idp, +cdp, +sz, +rx, +ry
-
-
-	Logging data:
-		to enable logging to console, call logToConsole()
-		to enable logging to firebase, instantiate firebase, and then call logToFirebase()
-		if this is running on volunteerscience.com, logging via volunteerscience API is automatically enabled
-		you can overload logline(direction,data) to set up custom logging of uinl messages, for example:
-			logline=function(direction,data){fetch('http://myserver.com/log?helloworld',{method:'POST',body:JSON.stringify([direction,data]),headers:{'content-type':'application/json'}})};
-
+			See const IMPLEMENTED below for list of implemented UINL features.
 */
-
 
 
 "use strict";
 
 
-const USERAGENT='u1js (v1.0.20201029)';
+const USERAGENT='u1js (v1.1.20230227)';
 
+// IMPLEMENTED describes all UINL properties/commands that are implemented here
+const IMPLEMENTED={
+	// core UINL options (U, Q, S, require, v, id) are all implemented
+	U:[], Q: [], S:[], require:[], v:[], id:[],
+	// additionally, the following option-values are available (i.e., requirable by app software)
+	//   ( [] means any potential values for a given option can be handled )
+	// error
+	'!':[],
+	// open link
+	open:[],
+	// load stylesheet
+	style:[],
+	// templates
+	tl:[],
+	// search commands
+	'U*':[],
+	'U**':[],
+	// request info command
+	R:[],
+	// scheduling commands
+	T:[],Tr:[],
+	Td:[],Ti:[],
+	Tn:[],Tc:[],
+	// common options
+	c:[
+		'txt', 'doc',						// text types (string values)
+		'num', 'dt', 'time',				// numeric types (number values)
+		'btn', 'hold', 'opt',		 		// toggle types (boolean values)
+		'bin', 'grid', 'one', 'win' 		// container types (array values)
+	],
+	cap:[],
+	i:[],
+	tag:[],
+	ef:[],
+	tip:[],
+	sx:[], sy:[],
+	// interactive options
+	in:[],
+	keys:[],
+	fcs:[],
+	cls:[],
+	on:[						// events
+		'v',					// value-change event
+		'fcs',				    // focus gained/lost
+		'fold' ,				// fold/unfold event
+		'sx', 'sy',				// scroll events
+		'xy', 'wh', 'whc',		// resize/reflow events
+		'o',					// overlap (i.e., collision)
+		'k', 'ku',				// keyboard key-down, key-up events
+		'pd', 'pu',				// pointer-device down/up events (e.g. mouse-button-down, mouse-button-up or touch-start, touch-end)
+		'pc', 'pcc',			// pointer-device click/tap and double-click/double-tap events
+		'p',					// pointer-device move and move-end events
+		'po',					// pointer over/out events
+		'md', 'mu', 'sw', 'swh' // secondary mouse buttons and mouse scrollwheel events
+	],
+	// numeric options
+	max:[], min:[], step:[],
+	unit:[],
+	// radio button grouping option
+	grp:[],
+	// container options
+	df:[],
+	fold:[],
+	// file type option
+	fmt:['html','mkdn'],
+	// win modal option
+	mod:[],
+	// table header option
+	// head:[],
+	// // line/link direction
+	// dir:[],
+	// animation options (all values except 'on' implemented)
+	// '+v':[],
+	// '+v|':['step', 'min', 'max', '++', 'r' ],
+	// '+x':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
+	// '+y':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
+	// '+w':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
+	// '+h':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ]
+}
 
 
 //////////////////////////////////////////////////////////////////////////////
 // Helper functions
-location.params={};location.search.substr(1).split("&").forEach(function(a){var b=a.split("=");location.params[b[0]]=b[1]});
+location.params={};location.search.substring(1).split("&").forEach(function(a){var b=a.split("=");location.params[b[0]]=b[1]});
+const MIMETYPES={
+	txt:'text/plain',
+	csv:'text/csv',
+	js:'text/js',
+	css:'text/css',
+	ics:'text/calendar',
+	html:'text/html',
+	xml:'text/xml',
+	json:'application/json',
+};
 function addCSS(css){document.head.appendChild(document.createElement("style")).innerHTML=css;}
 function urlInDocument(filetype,urlField,url){
 	var x=document.getElementsByTagName(filetype);
@@ -57,7 +127,7 @@ async function load(urls, callback, onerror, filetype){
 	else{url=urls;urls=[];}
 	if(urls.length)onload=function(){load(urls,callback,onerror,filetype);};
 	else onload=callback||function(){};
-	if(url && (url.endsWith(".js")||filetype==='js')){       //if filename is a external JavaScript file
+	if(url && (url.endsWith(".js")||filetype==='js')){	   //if filename is a external JavaScript file
 		if(urlInDocument('script','src',url))onload();
 		else{
 			fileref=document.createElement('script');
@@ -96,20 +166,16 @@ async function load(urls, callback, onerror, filetype){
 	}
 }
 Math.round2=(n,r)=>Math.round(n/r)*r;
-Date.prototype.format=function(format){
-	function twodigit(x){return x<10?'0'+x:x;}
-	function threedigit(x){return x<10?'00'+x:(x<100?'0'+x:x);}
-	var s="";
-	if(format.includes("Y"))s+=this.getUTCFullYear();
-	if(format.includes("M"))s+=(s.length?"-":"")+twodigit(this.getUTCMonth()+1);
-	if(format.includes("D"))s+=(s.length?"-":"")+twodigit(this.getUTCDate());
-	if(format.includes("d"))s+=(s.length?" ":"")+["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][this.getUTCDay()];
-	if(format.includes("h"))s+=(s.length?" ":"")+twodigit(this.getUTCHours());
-	if(format.includes("m"))s+=(s.length?(format.includes("h")?":":" "):"")+twodigit(this.getUTCMinutes());
-	if(format.includes("s"))s+=(s.length?":":"")+twodigit(this.getUTCSeconds());
-	if(format.includes("."))s+=(s.length?".":"")+threedigit(this.getUTCMilliseconds());
-	return s;
-};
+function localTimestamp(){
+	var now = new Date(),
+	offset = now.getTimezoneOffset() * 60;
+	return (+now /1000) - offset;
+}
+function dateISO(){
+	var d=new Date(localTimestamp()*1000),
+		tz=d.getTimezoneOffset();
+	return d.toJSON().substring(0,23)+(tz>=0?'+':'-')+(tz/60).toString().padStart(2,'0')+(tz%60).toString().padStart(2,'0');
+}
 HTMLElement.prototype._listen=function(event,fun){
 	if(!this._listeners)this._listeners={};
 	this.addEventListener(event,fun);
@@ -129,45 +195,36 @@ function objectify(o){
 		else r[key]=o[key];
 	return r;
 }
+function hiddenProp(obj,key,val){
+	Object.defineProperty(obj, key, {
+		enumerable: false,
+		writable: true,
+		value: val
+	});
+}
 //////////////////////////////////////////////////////////////////////////////
 
 
 
 //////////////////////////////////////////////////////////////////////////////
 // Logging
-//    call logToConsole() to log all uinl messages to console
-//    call logToFirebase() to log all uinl messages via Firebase
-//    if this code is running via volunteerscience.com, logToVolunteerScience() is automatically called to log all uinl messages via the volunteerscience API
-var logline=function(){};
-function stopLog(){logline=function(){};}
+//	call logToConsole() to log all uinl messages to console
+//	call stopLog() to discontinue logging
+const pass=function(){};
+var logline=pass;
+function json(data){return (typeof(data)==='string')?data:JSON.stringify(data);}
+function stopLog(){logline=pass;}
 function logToConsole(){
-	logline=function(data){console.log(JSON.stringify(data))};
+	logline=function(data){console.log(json(data));};
 }
-function logToFirebase(){
-	function _logToFirebase(){
-		firebase.uinlTask='apps/'+(location.host+location.pathname).replace(/\/|\./g,'-');
-		firebase.uinlSession='/'+firebase.uinlTask+'/'+firebase.database().ref().child(firebase.uinlTask).push().key;
-		var uinlSessionRef=firebase.database().ref(firebase.uinlSession);
-		var uinlMsgCnt=0;
-		logline=function(data){
-			// console.log({[uinlMsgCnt]:JSON.stringify(data)});
-			// uinlSessionRef.set({[uinlMsgCnt++]:JSON.stringify(data)});
-			firebase.database().ref(firebase.uinlSession+'/'+(uinlMsgCnt++)).set(JSON.stringify(data));
-		};
-	}
-	if(typeof(firebase)!=='undefined')_logToFirebase();
-	else load("https://www.gstatic.com/firebasejs/4.11.0/firebase.js",
-		function(){
-			firebase.initializeApp({apiKey:"AIzaSyCy-9xDsJ5_xYF0iBA9sLcPgmERFgd2JyM",authDomain:"stap-5a32d.firebaseapp.com",databaseURL:"https://stap-5a32d.firebaseio.com",projectId:"stap-5a32d",storageBucket:"stap-5a32d.appspot.com",messagingSenderId:"944783602225"});
-			_logToFirebase();
-		});
+function toggleLogging(){
+	if(logline===pass)logToConsole();
+	else stopLog();
 }
-function logToVolunteerScience(){
-	logline=function(data){
-		submit(Date.now()+'\t'+JSON.stringify(data));
-	};
-}
-if(typeof(submit)!=='undefined'&&location.host==="volunteerscience.com")logToVolunteerScience();
+//add logging hotkey (bound to CTRL-SHFT-\)
+window.addEventListener('keydown',e=>{
+	if(e.ctrlKey&&e.key==='|')toggleLogging();
+});
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -175,22 +232,16 @@ if(typeof(submit)!=='undefined'&&location.host==="volunteerscience.com")logToVol
 
 //////////////////////////////////////////////////////////////////////////////
 // gui object definitions
-function gui(data,log=true){
-	if(log)logline(data);
-	if(data===null){
-		gui.resetDisplay();
-	}else{
-		data=gui.prop(data);
-		gui.cancelQ(data);
-		if(data._===null||data._===undefined){
-			gui.rootContainer._update(data);
-		}else{
-			gui.rootContainer._searchId(data._.constructor===Array?data._:[data._],data);
-		}
-		// gui.rootContainer._updateInternalWidth();
-		// gui.rootContainer._updateInternalHeight();
+function gui(data){
+	if(data.constructor===Object){
+		gui.rootContainer._update(data);
 	}
 }
+gui.appEvent=function(msg){
+	logline(msg);
+	gui(JSON.parse(msg));
+}
+
 
 gui.REQUIRED={
 	Mkdn:[
@@ -198,43 +249,35 @@ gui.REQUIRED={
 		"gui.markdown=marked;"
 	]
 };
+gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'error': '!', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
 gui.TYPES={};
-gui.COMMANDS=new Set(['C','!','?','_','*','**','Q','R','S','T','U']);
-gui.OPTIONS=new Set(gui.COMMANDS);
-gui.OPTION_VALUES_IMPLEMENTED={
-	C:v=>(v in gui.TYPES),
-	select:v=>[-1,0,1,2].includes(v),
-	in:v=>v===0||v===1||v===-1,
-	man:v=>['x','y','w','h'].includes(v),
-	on:v=>(v in gui.EVENTS)||(v in gui.INFO),
-	R:v=>(gui.OPTIONS.has(v) || (v in gui.INFO) || (v in gui.Item.prototype._real)),
-};
-// gui.INTOPTIONS=new Set(['i','fold','str','opq','bb','cc','dir','z','in','focus','chmax','head']);
-// gui.NUMOPTIONS=new Set(['x','y','w','h','sx','sy','rot','iw','ih','cw','ch','max','min','rnd']);
-// gui.OBJOPTIONS=new Set(['require','df','in','on','throt','axisx','axisy','tip','keys']);
+gui.NO_ATTR=new Set(['!','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
+
 gui.resetDisplay=function(){
 	document.body.innerHTML='';
-	gui.rootContainer=new gui.Bin({},document.body);
-	gui.rootContainer._parent=null;
-	gui.rootContainer._prop.id=null;
-	gui.rootContainer._pw=1;
-	gui.rootContainer._ph=1;
+	gui.cancelScheduledEvents({});
+	gui.rootContainer=new gui.Root({},document.body);
 	document.body._item=gui.rootContainer;
 	window._item=gui.rootContainer;
-	gui.rootContainer.require=gui.require;
-	gui.rootContainer.style=gui.style;
-	gui.rootContainer['?']=gui.openExternal;
-	gui.rootContainer.title=gui.title;
-	gui.rootContainer._sendMsg=gui.sendUserEvent;
 }
-gui.ums=function(){return Date.now()-gui.startTime;};
+// gui.ums=function(){return Date.now()-gui.startTime;};
+gui.ums=0;
 gui.sendUserEvent=async function(msg){
-	msg.u=gui.ums();
+	msg.t=gui.ums;
+	if(gui.session)msg.s=gui.session;
 	logline(msg);
-	gui.action(msg);
+	gui.checkMessageTriggers(msg);
+	gui.userEvent(msg);
 };
 gui.vType=function(v){return {undefined:gui.Bin,object:gui.Bin,string:gui.Txt,number:gui.Num,boolean:gui.Btn}[typeof(v)]};
-gui.getType=function(prop){if(prop.C && (prop.C in gui.TYPES))return gui.TYPES[prop.C];}
+gui.getType=function(prop){if(prop.c && (prop.c in gui.TYPES))return gui.TYPES[prop.c]};
+gui.shortProps=function(prop){
+	var propShort={};
+	for(let propName in prop){
+		propShort[gui.LONGFORM[propName]||propName]=prop[propName];
+	}
+	return propShort;
+};
 gui.prop=x=>(x.constructor===Object)?x:{v:x};
 gui.getColor=v=>getComputedStyle(document.body).getPropertyValue('--color'+v);
 gui.color=v=>gui.getColor(v)?`var(--color${v})`:v;
@@ -243,56 +286,89 @@ gui.uniqueId=function(id){
 	var items=gui.ids[id];
 	if(items.length==1)return true;
 	for(var i=items.length;i--;){
-		if(!document.body.contains(items[i]._element))
+		if(!items[i]._exists())
 			items.splice(i,1);
 	}
 	if(items.length==1)return true;
 }
-gui.queue={};
-gui.cancelQ=function(prop){
-	if('Q' in prop){	//clear and remove prior instances of Q-id in timeout queues
-		if(prop.Q.constructor===Object){	// Q:{} (wildcard) -- stop/remove all prior timeouts
-			for(var q in gui.queue){
-				clearTimeout(gui.queue[q]);
-				delete gui.queue[q];
+gui.scheduledUpdates={};
+gui.cancelScheduledEvents=function(tc){
+	//clear and remove prior instances of Tc id in scheduled updates
+	if(tc.constructor===Object){		// Tc:{} (wildcard) -- stop/remove all prior scheduled updates
+		//TODO: this will not remove unnamed scheduled updates, but should
+		for(let tc in gui.scheduledUpdates){
+			if(gui.scheduledUpdates[tc].constructor===Array){
+				gui.msgTriggers.delete(gui.scheduledUpdates[tc]);
+			}else if(gui.scheduledUpdates[tc].constructor===Number){
+				clearTimeout(gui.scheduledUpdates[tc]);
+				clearInterval(gui.scheduledUpdates[tc]);
 			}
-		}else{								// Q:<<pid>> -- stop/remove timeouts for specific <<pid>>
-			if(gui.queue[prop.Q]){
-				clearTimeout(gui.queue[prop.Q]);
-				delete gui.queue[prop.Q];
+			delete gui.scheduledUpdates[tc];
+		}
+	}else{								// Tc:<<tcId>> -- stop/remove timeouts for specific <<tcId>>
+		if(gui.scheduledUpdates[tc]){
+			if(gui.scheduledUpdates[tc].constructor===Array){
+				gui.msgTriggers.delete(gui.scheduledUpdates[tc]);
+			}else if(gui.scheduledUpdates[tc].constructor===Number){
+				clearTimeout(gui.scheduledUpdates[tc]);
+				clearInterval(gui.scheduledUpdates[tc]);
 			}
+			delete gui.scheduledUpdates[tc];
+		}
+	}
+}
+gui.msgTriggers=new Set();
+gui.triggerMatch=function(trigger,msg){
+	if(Object.keys(trigger).length===0)return true;	//wildcard trigger
+	var val;
+	for(var key in trigger){
+		val=trigger[key];
+		if(val && val.constructor===Object){		//value wildcard
+			if(!(key in msg))return false;
+		}else{										//exact match
+			if(msg[key]!==val)return false;
+		}
+	}
+	return true;
+}
+gui.checkMessageTriggers=function(msg){
+	for(var [trigger,f] of gui.msgTriggers){
+		if(gui.triggerMatch(trigger,msg)){
+			f(msg);
 		}
 	}
 }
 gui.animations=new Set();
 gui.propWatch=new Set();
-gui.loop=function(){
-	var now=Date.now(),
-		timeStep=now-gui.lastAF,
-		item,propName;
+gui.loop=function(now){
 	//progress animations
-	for(var ani of gui.animations){
-		gui.animate(timeStep,ani);
-	}
-	//go through properties added to watch-list via event-capture option "on"
-	for(item of gui.propWatch){
-		if(item._propWatch.size&&document.body.contains(item._element)){
-			for(propName of item._propWatch)
-				item._checkProp(propName);
-		}else{
-			gui.propWatch.delete(item);
+	if(gui.animations.size){
+		const deltaTime=(now-gui.ums)/1000;
+		for(let ani of gui.animations){
+			gui.animate(deltaTime,ani);
 		}
 	}
-	gui.lastAF=now;
+	//go through properties added to watch-list via event-capture option "on"
+	if(gui.propWatch.size){
+		let propName;
+		for(let item of gui.propWatch){
+			if(item._propWatch.size&&item._exists()){
+				for(propName of item._propWatch)
+					item._checkProp(propName);
+			}else{
+				gui.propWatch.delete(item);
+			}
+		}
+	}
+	gui.ums=Math.round(now);
 	requestAnimationFrame(gui.loop);
 }
-gui.lastAF=Date.now();
 requestAnimationFrame(gui.loop);
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// general ui directives
+// require/load ui features
 gui.require=function(require,loaded){
 	var propName,propVal;
 	if(!loaded){
@@ -310,33 +386,21 @@ gui.require=function(require,loaded){
 			return;
 		}
 	}
-	//collect all options
-	var types=[],typep;
-	for(var k in gui){
-		typep=gui[k].prototype;
-		if(typep&&(typep.C||typep.v)){
-			gui.TYPES[typep.C]=gui[k]; //this is done in onload, but repeated here in case a new type was loaded
-			for(var propName of Object.getOwnPropertyNames(typep)){
-				if(typep[propName]!==null && typep[propName].call && !propName.startsWith("_"))
-					gui.OPTIONS.add(propName);
-			}
-		}
-	}
 	//check that all requested options are implemented
-	var errors,errorScreen=[];
+	var errorScreen=[];
 	for(var propName in require){
-		if(!gui.OPTIONS.has(propName)){
+		if(!(propName in IMPLEMENTED)){
 			gui.sendUserEvent({'!':'Sorry, I cannot handle required option: '+propName});
 			errorScreen.push({id:'Cannot handle required property option(s)',v:[propName]});
 		}else{
-			if(propName in gui.OPTION_VALUES_IMPLEMENTED){
+			if(IMPLEMENTED[propName].length){
 				if(require[propName].constructor!==Array)require[propName]=[require[propName]];
 				if(require[propName].length===0){
 					gui.sendUserEvent({'!':'Sorry, I cannot handle required all possible values for {'+propName+'}'});
 					errorScreen.push({id:'Cannot handle all values for required property',v:[propName]});
 				}else{
 					for(var v of require[propName]){
-						if(!gui.OPTION_VALUES_IMPLEMENTED[propName](v)){
+						if(!IMPLEMENTED[propName].includes(v)){
 							gui.sendUserEvent({'!':'Sorry, I cannot handle required option-value: {'+propName+':'+JSON.stringify(v)+'}'});
 							errorScreen.push({id:'Cannot handle required property option(s)',v:['{'+propName+':'+JSON.stringify(v)+'}']});
 						}
@@ -346,14 +410,10 @@ gui.require=function(require,loaded){
 		}
 	}
 	if(errorScreen.length){
-		gui(null);
-		gui([{id:'Error',v:errorScreen}]);
+		gui({v:[null,{id:'Error',v:errorScreen}]});
 		if(gui.ws)gui.ws.close();
 	}
 };
-gui.style=function(v){load(v)}
-gui.openExternal=function(v){window.open(v)}
-gui.title=function(v){document.title=(v===null||v===undefined)?'':v;}
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -369,7 +429,7 @@ addCSS(`
 --colorTrue: lightblue;
 --colorLink: #0066ff;
 }
-* {scrollbar-width:thin;}
+* {scrollbar-width:thin;box-sizing:border-box}
 scrollbar {width:5px;height:5px;}
 a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar {width:5px;height:5px;}
@@ -377,14 +437,16 @@ a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar-track {background: rgba(0,0,0,0.1);}
 body {background-color:var(--color0);color:var(--color1);font-size:18pt;overflow:overlay} 
 [level="0"] , [level="0"]>* {margin:0px !important;padding:0px !important;width:100% !important;height:100% !important}
-div {position:relative;box-sizing:border-box}
-[C] {font-size:90%;border-width:0px;border-style:solid;border-color:#444;stroke:var(--color1);fill:none;overflow:auto;z-index:1;margin:3px;margin-left:6px;}
-[C][level="1"] {margin-left:1px}
+div {position:relative}
+[c] {border-width:0px;border-style:solid;border-color:#444;stroke:var(--color1);fill:none;overflow:visible;z-index:1;margin:3px;margin-left:6px; margin-top:0.5em; min-width:1em;min-height:1em;}
+[c][level="1"] {margin-left:1px}
 .title:not(:empty):not(td) {white-space:nowrap;overflow:visible;user-select:none}
 .title:empty {margin:0px}
-.content {overflow:hidden;border:none;left:0px;right:0px}
+.subcaption {font-size:70%;font-weight:500;text-decoration:underline}
+.content {overflow:hidden;border:none;left:0px;right:0px;font-size:90%}
 .frame {overflow:auto;max-width:100%;max-height:100%;}
-[C] {overflow:visible}
+input , textarea {font-family:consolas, monospace;color:var(--color1)}
+[c] {overflow:visible}
 *:focus {outline: 0px solid transparent;box-shadow:0px 0px 5px 2px var(--colorTrue) !important;}
 `);
 gui.Item=class{
@@ -398,97 +460,140 @@ gui.Item=class{
 		this._content.classList.add('content');
 		this._frame.classList.add('frame');
 		this._title.classList.add('title');
-		this._content._item=this._frame._item=this._element._item=this._outterElement._item=this;
-		this._setAttr('C',this.C);
+		this._content._item=this._title._item=this._frame._item=this._element._item=this._outerElement._item=this;
 		this._level=parent._level+1;
 		this._setAttr('level',this._level);
-		this._prop={};
-		this._allprop={};																	//._allprop includes own and inherited (via parent defaults) props
-		this._initDefaults();
-		this._update(Object.assign({},this._typeDefaults,prop));							//refresh attributes based on own properties and class defaults
-		for(var propName in this._parent._defaults)											//refresh attributes based on parent defaults
-			if(!(propName in this._prop))
-				this._refreshProp(propName,this._parent._defaults[propName]);
+		this._prop={c:this._classDefaults.c};
+		this._setAttr('c',this._classDefaults.c)
+		// this._id(prop.id);
+		this._initDefaults(prop);
+		this._update(prop);							//refresh attributes based on own properties and class defaults
 	}
 	_initContent(){
 		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-		// this._frame=this._element.appendChild(document.createElement('div'));			//content frame (overflow:auto so that content can be scrolled)
-		this._title=this._element.appendChild(document.createElement('div'));				//title (this is where id/title goes)
+		this._title=this._element.appendChild(document.createElement('div'));			//title (this is where id/title goes)
 		this._content=this._element.appendChild(document.createElement('div'));			//content (includes value)
 		this._frame=this._content;
 		this._parent._placeChildElement(this);
 	}
-	_initDefaults(){}
+	_initDefaults(prop){
+		var df=this._parent._prop.df;
+		for(var p in df){
+			if(df[p] && df[p].constructor===Object){
+				if(!(p in prop))prop[p]={}; //TODO: since this only happens on creation, this if statement is unnecessary
+				for(var subprop in df[p]){
+					if(!(subprop in prop[p])) //TODO: since this only happens on creation, this if statement is unnecessary
+						prop[p][subprop]=df[p][subprop];
+				}
+			}else if(!(p in prop)){
+				prop[p]=(df[p] && df[p].constructor===Array)?
+					[...df[p]]:df[p];
+			}
+		}
+		if(!('v' in prop))prop.v=this._classDefaults.v;
+		delete prop.c;
+	}
 	_beforeRemove(){}
 	_attr(attr){return this._element.getAttribute(attr);}
 	_setAttr(attr,val){
 		if(val===null)this._element.removeAttribute(attr);
 		else this._element.setAttribute(attr,val);
 	}
-	// _numOptions(propName){return gui.NUMOPTIONS.has(propName)}
 	_delay(prop,delay){
+		if(!('Tn' in prop))prop.Tn=Math.random();
 		var timeoutId=setTimeout(()=>{
-				if('Q' in prop)delete gui.queue[prop.Q];
+				delete gui.scheduledUpdates[prop.Tn];
 				this._update(prop);
 			},delay);
-		if('Q' in prop)gui.queue[prop.Q]=timeoutId;
+		gui.scheduledUpdates[prop.Tn]=timeoutId;
+	}
+	_interval(prop){
+		var ti=prop.Ti*1000,propJson;
+		delete prop.Ti;
+		if(!('Tn' in prop))prop.Tn=Math.random();
+		propJson=JSON.stringify(prop);
+		this._update(JSON.parse(propJson));
+		var intervalId=setInterval(()=>{
+				this._update(JSON.parse(propJson));
+			},ti);
+		gui.scheduledUpdates[prop.Tn]=intervalId;
 	}
 	_update(prop){
-		if(prop.U){				//delay current message until a specific time
-			let delay=prop.U-gui.ums();
-			delete prop.U;
+		prop=gui.shortProps(prop);
+		if(prop.Td){								//delay current update for a specified number of seconds
+			let delay=prop.Td*1000;
+			delete prop.Td;
 			this._delay(prop,delay);
-		}else if(prop.S){		//delay current message a few seconds
-			let delay=prop.S*1000;
-			delete prop.S;
-			this._delay(prop,delay);
-		}else if(prop.T){		//delay current message until a specific trigger
-			//TODO: 
-		}else{
-			var r=prop.R;											//if there is an R command, save it for later
-			if(r)delete prop.R;
-			if('*' in prop && this._searchStar){					//if there is a * command, search and update matching child items
-				var searchTerms=prop['*'];
-				delete prop['*'];
-				this._searchStar(searchTerms,prop);
-			}else if('**' in prop && this._searchRecur){			//if there is a ** command, search and update matching descendant items
-				var searchTerms=prop['**'];
-				delete prop['**'];
-				this._searchRecur(searchTerms,prop);
-			}else if(prop.v===null){								//if v==null, delete this item
-				this._prop.v=null;
-				if(this._parent)this._parent._removeChild(this);
-				else gui.resetDisplay();
+		}else if(prop.Ti){
+			this._interval(prop);					//current update will execute on a specified interval
+		}else if(prop.v===null){	 				//if v==null, delete this item
+			this._prop.v=null;
+			if(this._parent){
+				this._parent._removeChild(this);
+				if(prop.R)this.R(prop.R);
 			}else{
-				for(var propName in prop){
-					this._updateProp(propName,prop[propName]);
-				}
+				gui.resetDisplay();
+				if(prop.R)gui.rootContainer.R(prop.R);
 			}
-			if(r){
-				this.R(r,prop.Q);
+		}else{
+			if(prop.c!==undefined){
+				if(prop.c!==this._classDefaults.c){
+					this.c(prop.c,prop);
+					return;
+				}
+			}else if(prop.v!==undefined && prop.v.constructor!==this._classDefaults.v.constructor){
+				// console.log(prop,prop.v.constructor,{Array:'bin',Boolean:'btn',String:'txt',Number:'num'}[prop.v.constructor]);
+				// prop.c={Array:'bin',Boolean:'btn',String:'txt',Number:'num'}[prop.v.constructor];
+				prop.c=gui.vType(prop.v).prototype._classDefaults.c;
+				this.c(prop.c,prop);
+				return;
+			}
+			let r=prop.R;											//if there is an R command, save it for later
+			if(r)delete prop.R;
+			let q=prop.Q;											//if there is an Q command, save it for later
+			if(q)delete prop.Q;
+			if(prop.df!==undefined){
+				this._updateProp('df',prop.df);
+				delete prop.df;
+			}
+			if(prop.v!==undefined){
+				this._updateProp('v',prop.v);
+				delete prop.v;
+			}
+			for(var propName in prop){
+				if(!propName.startsWith('+'))
+					this._updateProp(propName,prop[propName]);
+			}
+			for(var propName in prop){
+				if(propName.startsWith('+'))
+					this._updateProp(propName,prop[propName]);
+			}
+			if(r)this.R(r);
+			if(q && q.constructor===Array){
+				for(let prop of q)
+					this._update(prop);
 			}
 		}
 	}
 	_updateProp(propName,propVal){
-		if(propVal===null&&propName in this._typeDefaults){
-			propVal=this._typeDefaults[propName];
-		}else if(propVal===9e99){
-			propVal=Infinity;
-		}else if(propVal===-9e99){
-			propVal=-Infinity;
-		}else if(propName==='v' && this.C==='num' && typeof(propVal)==='string'){
-			propVal=NaN;
-		// }else if(propVal && propVal.constructor===Object && (this._numOptions(propName) || gui.INTOPTIONS.has(propName))){
-			// var v=(propName in this._allprop)?this._allprop[propName]:(this._typeDefaults[propName]||0);
-			// if('^=' in propVal)v**=propVal['^='];
-			// if('*=' in propVal)v*=propVal['*='];
-			// if('+=' in propVal)v+=propVal.vy;
-			// if('max' in propVal)v=Math.max(v,propVal['max']);
-			// if('min' in propVal)v=Math.min(v,propVal['min']);
-			// if(gui.INTOPTIONS.has(propName))v=Math.round(v);
-			// this._prop[propName]=propVal=v;
-		}else if(this._prop[propName]&&this._prop[propName].constructor===Object){
-			Object.assign(this._prop[propName],propVal);
+		if(propVal===null){
+			if(propName in this._prop){
+				if(this._prop[propName] && this._prop[propName].constructor===Object){
+					propVal={};
+					for(var subprop in this._prop[propName]){
+						propVal[subprop]=null;
+					}
+				}
+				delete this._prop[propName];
+			}
+		}else if(this._prop[propName] && this._prop[propName].constructor===Object && propVal.constructor===Object){
+			for(var key in propVal){
+				if(propVal[key]===null){
+					delete this._prop[propName][key];
+				}else{
+					this._prop[propName][key]=propVal[key];
+				}
+			}
 		}else{
 			this._prop[propName]=propVal;
 		}
@@ -496,22 +601,17 @@ gui.Item=class{
 	}
 	_refreshProp(propName,propVal){
 		try{
-			if(this[propName] && propName!=='C'){// && (propName==='sy'||propName==='sx'||this._allprop[propName]!==propVal)){
-				//save in _allprop (or delete if null)
-				if(propVal===null)
-					delete this._allprop[propName];
-				else if(this._allprop[propName]&&this._allprop[propName].constructor===Object)
-					Object.assign(this._allprop[propName],propVal);
-				else
-					this._allprop[propName]=propVal;
+			if(this[propName]){
 				//run the class-specific property function
 				this[propName](propVal);
 				//set DOM attribute
 				if(propName==='v'){
 					if(propVal.constructor===Boolean)this._setAttr('v',propVal);
 					else this._moveHook();
-				}else if(!gui.COMMANDS.has(propName)){
-					this._setAttr(propName,typeof(propVal)==='object'?'':propVal);
+				}else if(!gui.NO_ATTR.has(propName)){
+					try{
+						this._setAttr(propName,propVal);
+					}catch(e){}
 				}
 			}
 		}catch(e){
@@ -519,18 +619,11 @@ gui.Item=class{
 			this._sendMsg({'!':`Problem setting ${propName} to ${propVal} :: [[${e.stack}]]`});
 		}
 	}
-	_getIndex(){
-		var i=0,e=this._outterElement;
-		while((e=e.previousElementSibling)!==null)
-			if(e._item)++i;
-		return i;
-	}
+	_getIndex(){return this._parent._children.indexOf(this);}
 	_match(query){
 		if(query.constructor===Object){
 			for(var q in query){
-				if(q==='C'){
-					if(this.C!==query[q])return false;
-				}else if(this._prop[q]&&query[q].constructor===Array){
+				if(this._prop[q]&&query[q].constructor===Array){
 					var keys=this._prop[q].constructor===Array?this._prop[q]:Object.keys(this._prop[q]);
 					for(var key of query[q])
 						if(!keys.includes(key))return false;
@@ -541,14 +634,17 @@ gui.Item=class{
 			return true;
 		}
 	}
-	_uniqueId(){return !this._parent||(this._prop.id && gui.uniqueId(this._prop.id));}
+	_uniqueId(){return this._prop.id && gui.uniqueId(this._prop.id);}
 	_getId(){
 		if(this._uniqueId()){
-			return this._prop.id||this._getIndex();
+			return this._prop.id;
+		}else if(this._parent===gui.rootContainer){
+			return this._getIndex();
 		}else{
+			//Warning: This will give non-unique in-container id (tho that's consistent with UINL1.1 spec)
 			var parent=this._parent,
 				fullname=[this._prop.id||this._getIndex(),parent._prop.id||parent._getIndex()];
-			while(!parent._uniqueId()){
+			while(parent._parent!==gui.rootContainer && !parent._uniqueId()){
 				parent=parent._parent;
 				fullname.push(parent._prop.id||parent._getIndex());
 			}
@@ -556,224 +652,160 @@ gui.Item=class{
 		}
 	}
 	_sendMsg(msg){
-		msg._=this._getId();
+		msg.u=this._getId();
 		gui.sendUserEvent(msg);
 	}
 	_moveHook(){
 		for(var f in this._moveTriggers){
 			this._moveTriggers[f]();
 		}
-		// var h;
-		// if(this._parent && !this._parent._allprop.ch && (h=this._element.offsetTop+this._element.offsetHeight)>this._parent._content.offsetHeight){
-			// console.log(this._allprop,this._parent._allprop,h);
-			// this._parent._content.style.height=h;
-		// }
-		// console.log('hee',h);
-	};
-	v(v){this._content.innerHTML=v;}
+	}
+	_exists(){return document.body.contains(this._element);}
+	c(v,props={}){
+		if(v!==this._classDefaults.c){
+			if(!('i' in props))props.i=this._getIndex();
+			if(this._prop.v!==undefined && this._prop.v.constructor!==gui.TYPES[v].prototype._classDefaults.v.constructor)
+				delete this._prop.v;
+			props=Object.assign({},this._prop,props);
+			this._parent._removeChild(this);
+			this._parent._newChild(props);
+		}
+	}
+	v(v){this._content.innerText=v;}
 	id(v){
-		this._parent._childmap[v]=this;
-		this.title();
-		var iditems=gui.ids[v];
-		if(iditems)iditems.push(this);
-		else gui.ids[v]=[this];
+		if(typeof(v)==='string'){
+			// this._setAttr('id',v);
+			// this._prop.id=v;
+			this._parent._childmap[v]=this;
+			this.cap();
+			var iditems=gui.ids[v];
+			if(iditems)iditems.push(this);
+			else gui.ids[v]=[this];
+		}
 	}
-	title(v){this._title.innerHTML=(v===null||v===undefined)?this._prop.id:v;}
-}
-gui.Item.prototype['!']=function(v){console.error(this._allprop,v);};
-gui.Item.prototype._typeDefaults={};
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// text items
-addCSS(`
-[C='txt'] > .title:empty {width:0px;height:0px;overflow:hidden}
-[C='txt'] > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);width:25%;}
-[C='txt'] > .content {white-space:pre-wrap}
-[C='txt'][id] > .content {margin-left:.5em}
-[C='txt'][title]:not([title='']) > .content {margin-left:.5em}
-`);
-gui.Txt=class extends gui.Item{}
-gui.Txt.prototype.C='txt';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// number items
-addCSS(`
-[C='num'] * {display:inline-block;vertical-align:middle}
-[C='num'] > .title:empty {width:0px;height:0px;overflow:hidden}
-[C='num'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
-[C='num'] > .title:not(:empty):after {content:":"}
-[C='num'] > .content {display:inline-block}
-`);
-gui.Num=class extends gui.Item{
-	_initContent(){
-		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-		this._frame=this._element;
-		this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
-		this._content=this._frame.appendChild(document.createElement('div'));			//content (includes value)
-		this._parent._placeChildElement(this);
-	}
-	// _numOptions(propName){return propName==='v'||gui.NUMOPTIONS.has(propName)}
-}
-gui.Num.prototype.C='num';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// boolean items
-addCSS(`
-[in="1"] {cursor:pointer;user-select:none;-moz-user-select:none;}
-[in="0"] {pointer-events:none;opacity:.5;}
-[C='btn']:active {background-color:var(--colorTrue) !important;}
-[C='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;}
-[C='btn'] > * {display:inline-block}
-[C='btn']:not([shp]) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3)}
-[C='btn'][shp] {filter:drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.7))}
-[C='btn']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
-[C='btn'][in]:empty {width:1em;height:1em;border-radius:2em;}
-[btnContainer] [C='btn'] {display:none}
-[btnContainer]:active {background-color:var(--colorTrue) !important;}
-[btnContainer]:not([C='tableRow']) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);cursor:pointer;border-radius:4px;}
-[v="true"]:not([C='txt']) {background-color:var(--colorTrue) !important;}
-`);
-gui.Btn=class extends gui.Item{
-	_initContent(){
-		this._element=document.createElement('div');			//make element inside parent
-		this._setAttr('tabindex',0);
-		this._element.onkeydown=function(e){if(!e.repeat&&(e.keyCode==32||e.keyCode===13)){this._item._btnDown();e.preventDefault();e.stopPropagation()}};
-		this._element.onkeyup=function(e){if(e.keyCode==32||e.keyCode===13){this._item._btnUp();e.preventDefault();e.stopPropagation()}};
-		this._frame=this._element;
-		this._content=this._element;
-		this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
-		// this._title=this._element;
-		this._parent._placeChildElement(this);
-		this._bind(this);
-	}
-	v(v){
-		if(v){
-			if(this._boundTo && this._boundTo!==this){
-				this._boundTo._setAttr('v',v);
+	cap(v){
+		var title=(v===null||v===undefined)?this._prop.id:v;
+		if(title){
+			if(!this._titleText){
+				this._titleText=this._title.appendChild(document.createElement('span'));
+				this._titleText._item=this;
 			}
-			if(this._allprop.in===1)
-				setTimeout(()=>this._updateProp('v',false),200);
+			this._titleText.innerText=title;
+		}else if(this._titleText){
+			this._titleText.remove();
 		}
-	}
-	_btnDown(){this._setAttr('v',true);}
-	_btnUp(){this._setAttr('v',false);this._boundTo._element.onclick();}
-	_bind(item){
-		var thisItem=this;
-		this._boundTo=item;
-		if(this._unbind)this._unbind();
-		if(this._allprop){
-			item._setAttr('in',this._allprop.in);
-		}
-		item._element.onclick=function(){							//click behavior
-			thisItem._sendMsg({v:true});
-		}
-		this._unbind=function(){item._element.onclick=null;}
 	}
 }
-gui.Btn.prototype.C='btn';
-gui.Btn.prototype._typeDefaults={in:1};
+gui.Item.prototype['!']=function(v){console.error(this._prop,v);};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// containers
-addCSS(`
-[C='bin']:not([tag]):not([shp]):not([h]):not([level='0']) {border-left: solid 0.2px #ccc}
-[C='bin'][id]:not([title='']):not([y]) , [C='bin'][title]:not([title='']):not([y]) {margin-top:1.5em}
-[C='bin'] > .title:empty {display:none}
-[C='bin'] > .title:not(empty) {position:absolute;bottom:100%;border-bottom:solid 1px var(--colorBorder);}
-[C='bin'] > .content {display:block}
-`);
-gui.Bin=class extends gui.Item{
+// prototypical gui container
+gui._Container=class extends gui.Item{
 	_initContent(){
 		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
 		this._title=this._element.appendChild(document.createElement('div'));			//title (this is where id/title goes)
 		this._frame=this._element.appendChild(document.createElement('div'));			//content frame (overflow:auto so that content can be scrolled)
 		this._content=this._frame.appendChild(document.createElement('div'));			//content
-		// this._title=this._content.appendChild(document.createElement('div'));			//title (this is where id/title goes)
 		this._parent._placeChildElement(this);
 	}
-	_initDefaults(){
-		this._defaults=Object.assign({},this._parent._defaults);
+	_initDefaults(prop){
+		this._prop.df=Object.create(this._parent._prop.df);
 		this._children=[];
 		this._childmap={};
+		super._initDefaults(prop);
 	}
-	*[Symbol.iterator](){
-		// var i,child;
-		// for(i=this._content.children.length;i--;){
-			// child=this._content.children[i]._item;
-			// if(child)yield child;
-		// }
-		for(var i=this._children.length;i--;){
-			yield this._children[i];
+	_update(prop){
+		prop=gui.shortProps(prop);
+		if(prop.Td){							//delay current update for a specified number of seconds
+			let delay=prop.Td*1000;
+			delete prop.Td;
+			this._delay(prop,delay);
+		}else if(prop.Ti){
+			this._interval(prop);				//current update will execute on a specified interval
+		}else if('U' in prop){					//if there is a U command, find child item and update
+			let searchId=prop.U;
+			delete prop.U;
+			this._searchId(searchId,prop);
+		}else if('U**' in prop){				//if there is a U** command, search and update matching descendant items
+			let searchTerms=prop['U**'];
+			delete prop['U**'];
+			this._searchRecur(searchTerms,prop);
+		}else if('U*' in prop){					//if there is a U* command, search and update matching child items
+			let searchTerms=prop['U*'];
+			delete prop['U*'];
+			this._searchStar(searchTerms,prop);
+		}else{
+			super._update(prop);
 		}
-	}
-	_getChild(id){
-		if(typeof(id)==='number'){								//find child by order
-			// for(var i=0,eid=0;i<this._content.children.length;i++)
-				// if(this._content.children[i]._item){
-					// if(eid==id)return this._content.children[i]._item;
-					// eid++;
-				// }
-			return this._children[id];
-		}else if(typeof(id)==='string')							//find child by id
-			return this._childmap[id];
 	}
 	_placeChildElement(child){
 		this._content.appendChild(child._element);
-		child._outterElement=child._element;
+		child._outerElement=child._element;
 	}
 	_checkContainerBool(){
 		var boolItem;
-		for(var child of this){
+		for(var child of this._children){
 			if(child instanceof gui.Btn)
 				if(boolItem)return null;
 			else
 				boolItem=child;
 		}
-		if(boolItem && (boolItem._allprop.title=='' || (!boolItem._allprop.title && !boolItem._prop.id)))
+		if(boolItem && boolItem._prop.in!==0 && boolItem._prop.in!==-1 &&
+			(boolItem._prop.cap=='' || (!boolItem._prop.cap && !boolItem._prop.id)))
 			return boolItem;
+	}
+	_containerBool(){
+		var cbool=this._checkContainerBool();
+		if(this._containerBoolean && cbool!=this._containerBoolean && this._containerBoolean._unbind)
+			this._containerBoolean._unbind();
+		this._containerBoolean=cbool;
+		if(cbool){
+			this._containerBoolean._bind(this);
+			this._setAttr('btnContainer',1);
+			this._setAttr('v',Boolean(this._containerBoolean._prop.v));
+		}else{
+			this._setAttr('btnContainer',null);
+		}
 	}
 	_newChild(prop){
 		var type=gui.getType(prop);
+		if(type===gui.Win && this!==gui.rootContainer)type=gui.Bin;
 		if(!type){
-			var defaultType=gui.getType(this._defaults);
+			var defaultType=gui.getType(this._prop.df);
 			if('v' in prop){
 				type=gui.vType(prop.v);
 				if(defaultType&&(defaultType.prototype instanceof type))
 					type=defaultType;
 			}else if(defaultType){
 				type=defaultType;
-			}else if('v' in this._defaults){
-				type=gui.vType(this._defaults.v);
+			}else if('v' in this._prop.df){
+				type=gui.vType(this._prop.df.v);
 			}else{
 				type=gui.Bin;
 				prop.v=[];
 			}
 		}
 		var child=new type(prop,this);
-		this._children.push(child);
+		if(!this._children.includes(child))	//this check is in case "i" was used to push into _children
+			this._children.push(child);
+		return child;
 	}
 	_removeChild(child){
 		child._beforeRemove();										//cleanup
 		if(child._prop.id)delete this._childmap[child._prop.id];	//remove from _childmap
 		this._children.splice(this._children.indexOf(child),1);		//remove from _children
-		this._content.removeChild(child._outterElement);			//remove DOM element
+		child._outerElement.remove();			   					//remove DOM element
 	}
 	_searchStar(searchTerms,prop){
-		for(var child of this){
+		for(var child of this._children){
 			if(child._match(searchTerms))
 				child._update(prop);
 		}
 	}
 	_searchRecur(searchTerms,prop){
-		for(var child of this){
+		for(var child of this._children){
 			if(child._match(searchTerms))
 				child._update(prop);
 			if(child instanceof gui.Bin)
@@ -781,177 +813,415 @@ gui.Bin=class extends gui.Item{
 		}
 	}
 	_searchId(id,prop){
-		var child=this._getChild(id[0]);
+		return this._searchIdArray(id.constructor===Array?id:[id],prop);
+	}
+	_searchIdArray(id,prop){
+		var child=typeof(id[0])==='number'?this._children[id[0]]:this._childmap[id[0]];
 		if(child){
 			if(id.length>1){
-				return child._searchId(id.slice(1),prop);
+				return child._searchIdArray(id.slice(1),prop);
 			}else{
 				if(prop)child._update(prop);
 				return child;
 			}
 		}else{
-			for(var child of this){
+			for(var child of this._children){
 				if(child instanceof gui.Bin){
-					var c=child._searchId(id,prop);
+					var c=child._searchIdArray(id,prop);
 					if(c)return c;
 				}
 			}
 		}
 	}
-	_processProp(prop){
-		gui.cancelQ(prop);
-		if('_' in prop){								//edit child
-			this._searchId(prop._.constructor===Array?prop._:[prop._],prop);
-		}else if(('*' in prop)||('**' in prop)){		//edit children/descendants
-			this._update(prop);
-		}else if(prop.v!==null){						//new child
-			this._newChild(prop);
+	A(updates){
+		//cycle through all updates for this container
+		for(var prop of updates){
+			if(prop!==null){
+				this._newChild(gui.prop(prop));
+			}
 		}
 	}
 	v(updates){
-		//clear bin if updates==[]
-		if(updates[0]===null){
-			for(var child of this)this._removeChild(child);
-			updates.shift();
+		//clear bin
+		for(var i=this._children.length;i--;){
+			this._children[i]._beforeRemove();
+			this._children[i]._outerElement.remove();
 		}
-		//cycle through all updates for this container
-		for(var i of updates)
-			if(i!==null)
-				this._processProp(gui.prop(i));
-		//after updates are done, check if there's an untitled boolean value (for a cleaner look&feel)
-		var cbool=this._checkContainerBool();
-		if(this._containerBoolean && cbool!=this._containerBoolean && this._containerBoolean._unbind)
-			this._containerBoolean._unbind();
-		this._containerBoolean=cbool;
-		if(this._containerBoolean){
-			this._containerBoolean._bind(this);
-			this._setAttr('btnContainer',1);
-			this._setAttr('v',Boolean(this._containerBoolean._allprop.v));
+		this._childmap={};
+		this._children=[];
+		//add updates
+		this.A(updates);
+	}
+	df(){}
+}
+//////////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////////
+// Bin
+addCSS(`
+[c='bin']:not(tr):not([tag]):not([shp]):not([h]):not([level='0']) {border-left: solid 0.2px #ccc}
+[c='bin']:not(tr)[id]:not([cap='']):not([y]) , [c='bin']:not(tr)[cap]:not([cap='']):not([y]) {margin-top:1.5em}
+[c='bin']:not(tr) > .title:empty {display:none}
+[c='bin']:not(tr) > .title:not(empty) {position:absolute;bottom:100%;border-bottom:solid 1px var(--colorBorder);}
+[c='bin']:not(tr) > .content {display:block}
+`);
+gui.Bin=class extends gui._Container{};
+gui.Bin.prototype._classDefaults={c:'bin',v:[]};
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// root
+gui.Root=class extends gui._Container{
+	_sendMsg(msg){gui.sendUserEvent(msg)}
+	_initDefaults(prop){
+		this._prop.df={};
+		this._children=[];
+		this._childmap={};
+		this._parent=null;
+		this._prop.id=null;
+		this._pw=1;
+		this._ph=1;
+	}
+	_update(prop){
+		prop=gui.shortProps(prop);
+		if('Tc' in prop){gui.cancelScheduledEvents(prop.Tc)};
+		if(prop.T){				//delay current update until a specific time
+			let delay=prop.T-gui.ums;
+			delete prop.T;
+			this._delay(prop,delay);
+		}else if(prop.Tr){		//current update will execute only on specific trigger
+			if(!('Tn' in prop))prop.Tn=Math.random();
+			var item=this,trigger=[prop.Tr],propJson;
+			delete prop.Tr;
+			propJson=JSON.stringify(prop);
+			trigger.push(()=>item._update(JSON.parse(propJson)));
+			gui.msgTriggers.add(trigger);
+			gui.scheduledUpdates[prop.Tn]=trigger;
 		}else{
-			this._setAttr('btnContainer',null);
+			gui.btnBinsChanged=new Set(); //this is only for btn-containers
+			super._update(prop);
+			for(var bin of gui.btnBinsChanged)bin._containerBool(); //this is only for btn-containers
+		}
+	}
+	S(v){gui.session=v;}
+	require(v){
+		if(Object.keys(v).length)
+			gui.require(v);
+		else
+			this._sendMsg({requirable:IMPLEMENTED});
+	}
+	style(v){load(v);}
+	open(v){window.open(v);}
+	cap(v){document.title=(v===null||v===undefined)?'':v;}
+};
+gui.Root.prototype._classDefaults={c:'bin',v:[]};
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// text items
+addCSS(`
+[c='txt'] > .title:empty {width:0px;height:0px;overflow:hidden}
+[c='txt'] > .content {white-space:pre-wrap}
+[c='txt'][id] > .content {margin-left:.5em}
+[c='txt'][cap]:not([cap='']) > .content {margin-left:.5em}
+textarea {white-space:pre;min-height:8ex;max-height:28ex;width:calc(100% - 0.5em);font-size:11pt;border:solid 1px lightgray !important}
+`);
+function autoHeight(element){
+	if(element.constructor===HTMLTextAreaElement){
+		element.style.height='0px';
+		element.style.height=(5+element.scrollHeight)+'px';
+		let p=element._item._parent, c=p._content;
+		if(!('ch' in p._prop) && c.scrollHeight>getComputedStyle(c).height){
+			p._content.style.height=p._content.scrollHeight;
 		}
 	}
 }
-gui.Bin.prototype.C='bin';
+gui.Txt=class extends gui.Item{
+	v(v){
+		if(this._prop.in && this._prop.in>0){
+			if(v==='\n')v='';
+			this._content.value=v;
+			autoHeight(this._content);
+		}else{
+			this._content.innerText=v;
+		}
+	}
+	A(v){this.v(this._prop.v+v);}
+	in(v){
+		this._content._removeListeners();
+		if(v && v>0){
+			var item=this,
+				oneline=!this._prop.v.includes('\n');
+			this._content.remove();
+			this._frame=this._content=this._element.appendChild(document.createElement(
+				oneline?'input':'textarea'
+			));
+			this._frame._item=this;
+			var lastVal=item._prop.v;
+			function send(){
+				if(lastVal!==item._prop.v){
+					item._sendMsg({v:item._prop.v});
+					lastVal=item._prop.v;
+				}
+			}
+			this._content._listen('input',function(e){
+				item._prop.v=(oneline||item._content.value.includes('\n'))?
+					item._content.value:(item._content.value+'\n');
+				autoHeight(item._content);
+			});
+			this._content.onblur=send;
+			if(oneline)
+				this._content._listen('keypress',(e)=>{
+					if(e.key=='Enter'){
+						e.preventDefault();
+						send();
+					}
+				});
+		}else{
+			this._content.remove();
+			this._frame=this._content=this._element.appendChild(document.createElement('div'));
+		}
+		this._frame.className='frame content';
+		this.v(this._prop.v);
+	}
+}
+gui.Txt.prototype._classDefaults={c:'txt',v:''};
 //////////////////////////////////////////////////////////////////////////////
 
+
+//////////////////////////////////////////////////////////////////////////////
+// number items
+addCSS(`
+[c='num'] > input {padding-right:0px; text-align:right}
+[c='num'] * {display:inline-block;vertical-align:middle}
+[c='num'] > .title:empty {width:0px;height:0px;overflow:hidden}
+[c='num'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
+[c='num'] > .title:not(:empty):after {content:":"}
+[c='num'] > .content {display:inline-block; }
+
+input[disabled] {background-color:transparent}
+input:not([disabled]) {border:solid 1px lightgray}
+
+[c='num'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:text-bottom}
+`);
+gui.Num=class extends gui.Item{
+	// _initContent(){
+	// 	this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
+	// 	this._frame=this._element;
+	// 	this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
+	// 	this._content=this._frame.appendChild(document.createElement('input'));			//content (includes value)
+	// 	this._content.type='number';
+	// 	this._content.disabled=true;
+	// 	this._parent._placeChildElement(this);
+	// }
+	_display(v,step,offset=0){
+		if(step<1)v=v.toFixed(step.toString().split('.')[1].length);
+		return v;
+	}
+	in(v){
+		if(v && v>0){
+			var c;
+			this._content.remove();
+			c=this._content=this._element.appendChild(document.createElement('input'));
+			c.type='number';
+			c._item=this;
+			this.v(this._prop.v||0);
+			c.oninput=function(){
+				c._item._adjustWidth(c.value.length);
+			}
+			c.onchange=function(){
+				c._item._updateProp('v',c.value);
+				c._item._sendMsg({v:c._item._prop.v});
+			};
+		}else{
+			this._content.remove();
+			this._content=this._element.appendChild(document.createElement('div'));
+			this._content._item=this;
+			this.v(this._prop.v||0);
+		}
+	}
+	max(v){this.step();};
+	min(v){this.step();};
+	step(v){
+		if(this._prop.step<0)this._prop.step*=-1;
+		this._content.setAttribute('max',this._prop.max);
+		this._content.setAttribute('min',this._prop.min);
+		this._content.setAttribute('step',this._prop.step);
+		this.v(this._prop.v);
+	};
+	unit(v){this.v(this._prop.v);};
+	v(v){
+		if(this._prop.min!==undefined)v=Math.max(v,this._prop.min);
+		if(this._prop.max!==undefined){
+			v=Math.min(v,this._prop.max);
+			this._element.style.setProperty('--pp',`${(100*v/(this._prop.max-(this._prop.min||0)))}%`);
+		}
+		if(this._prop.step)v=(this._prop.min||0)+Math.round2(v-(this._prop.min||0),this._prop.step);
+		this._prop.v=v;
+		// this.in(this._prop.in);
+		if(this._content.constructor===HTMLInputElement){
+			this._content.value=this._display(v,this._prop.step,this._prop.min||0);
+			if(this._lastLength!==this._content.value.length)
+				this._adjustWidth(this._lastLength=this._content.value.length);
+		}else{
+			this._content.innerText=this._display(v,this._prop.step,this._prop.min||0);
+		}
+	}
+	A(v){this.v(this._prop.v+v);}
+	_adjustWidth(size){
+		this._content.style.width=`calc(${size+1}ch + 2em)`;
+	}
+}
+gui.Num.prototype._classDefaults={c:'num',v:0};
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// boolean items
+addCSS(`
+[c='btn']:active {background-color:var(--colorTrue) !important;}
+[c='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;}
+[c='btn'] > * {display:inline-block}
+[c='btn']:not([shp]) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3)}
+[c='btn'][shp] {filter:drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.7))}
+[c='btn']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
+[c='btn'][in]:empty {width:1em;height:1em;border-radius:2em;}
+[btnContainer] [c='btn'] {display:none}
+[btnContainer]:active {background-color:var(--colorTrue) !important;}
+[btnContainer]:not(tr) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);cursor:pointer;border-radius:4px;}
+[v="true"]:not([c='txt']) {background-color:var(--colorTrue) !important;}
+`);
+gui.Btn=class extends gui.Item{
+	_initContent(){
+		this._element=document.createElement('div');			//make element inside parent
+		this._setAttr('tabindex',0);
+		this._element.onkeydown=function(e){if(!e.repeat&&(e.key=='Enter'||e.key===' ')){this._item._btnDown();e.preventDefault();e.stopPropagation()}};
+		this._element.onkeyup=function(e){if(e.key=='Enter'||e.key===' '){this._item._btnUp();e.preventDefault();e.stopPropagation()}};
+		this._frame=this._element;
+		this._content=this._element;
+		this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
+		this._parent._placeChildElement(this);
+		this._bind(this);
+	}
+	_refreshProp(propName,propVal){
+		super._refreshProp(propName,propVal);
+		gui.btnBinsChanged.add(this._parent);
+	}
+	_beforeRemove(){
+		gui.btnBinsChanged.add(this._parent);
+	}
+	v(v){
+		if(v){
+			if(this._boundTo && this._boundTo!==this){
+				this._boundTo._setAttr('v',v);
+			}
+			if(this._prop.in===1)
+				setTimeout(()=>this._updateProp('v',false),200);
+		}
+	}
+	A(v){this.v(!this._prop.v);}
+	_btnDown(){this._setAttr('v',true);}
+	_btnUp(){this._setAttr('v',false);this._boundTo._element.onclick();}
+	_bind(item){
+		var thisItem=this;
+		this._boundTo=item;
+		if(this._unbind)this._unbind();
+		if(this._prop)
+			item._setAttr('btnin',this._prop.in);
+		item._element.onclick=function(e){							//click behavior
+			thisItem._sendMsg({v:true});
+		}
+		this._unbind=function(){item._element.onclick=null;}
+	}
+}
+gui.Btn.prototype._classDefaults={c:'btn',v:false};
+//////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
 // initiate gui and connect to app
-var app={};		//global reference to app software
 (function(){	//onload: initiate rootContainer and connect to app software
 	//////////////////////////////////////////////////////////////////////////////
 	// init window and connect to app
 	function init(){
 		//collect all types
-		Object.values(gui).filter(v=>v.prototype&&v.prototype.C).forEach(c=>gui.TYPES[c.prototype.C]=c);
+		Object.values(gui).filter(v=>v.prototype&&v.prototype._classDefaults).forEach(c=>{if(!gui.TYPES[c.prototype._classDefaults.c])gui.TYPES[c.prototype._classDefaults.c]=c});
 		//create foundational element
 		document.body._level=-1;
 		document.body._content=document.body;
 		document.body._placeChildElement=function(child){
 			this._content.appendChild(child._element);
-			child._outterElement=child._element;
+			child._outerElement=child._element;
 		}
 		gui.resetDisplay();
 		//connect to app
-		if(app.userAction || app.start){
+		if(!window.app)window.app={};
+		if(window.userEvent || app.userEvent){
 			//if app code is client-side script...
 			connectToTaskScript();
-		}else if(app.location || location.params.l){
+		}else if(location.params.l || app.location){
 			// load url if one is supplied...
-			gui(['Loading...']);
+			gui({v:['Loading...']});
 			app.location=app.location || location.params.l;
 			if(app.location.startsWith('ws://') || app.location.startsWith('wss://'))
 				connectToTaskWS();
 			else
 				connectToTaskHTTP();
+			//TODO: allow location of .js script
 		}else{
-			gui(['Hey there...',{id:'Intersted in the UINL?',v:"http://uinl.github.io/"}]);
+			//TODO: change this to allow entering task location
+			gui({v:['Hey there...',{id:'Intersted in the UINL?',v:"http://uinl.github.io/"}]});
 		}
 	}
 	function onTaskConnect(){
-		gui.startTime=Date.now();
+		let msg={						// format handshake message
+			userAgent: USERAGENT,
+			wh: [gui.rootContainer._element.offsetWidth,gui.rootContainer._element.offsetHeight],
+			platform: navigator.userAgent,
+			time: dateISO(),
+			url: location.href,
+			t:0
+		};
+		logline(msg);
+		gui.startTime=Date.now();		// mark start-time
+		gui.userEvent(msg);				// send handshake message to initiate app
 	}
 	function connectToTaskScript(){
-		//	connect gui.action to app.userAction
-		if(app.userAction)gui.action = app.userAction;
+		//	connect gui.userEvent to app.userAction
+		gui.userEvent=app.userEvent || userEvent;
 		//	connect app.display to gui.update;
-		app.display=function(data){gui(JSON.parse(JSON.stringify(data)));};
-		//	define app.end
-		app.end=function(){};
+		app.display=gui.display=function(data){gui.appEvent(JSON.stringify(data));};
 		//	start app
 		onTaskConnect();
-		if(app.start)app.start();
 	}
 	function connectToTaskHTTP(){
-		function onReady(){
-			if(this.readyState==4){
-				if(this.status==200){
-					gui.httpParrotHeader=null;
-					gui.httpAppendToURL=null;
-					this.getAllResponseHeaders().split('\n').forEach(line=>{
-						if(line.substr(0,9).toLowerCase()==('x-parrot:'))gui.httpParrotHeader=line.substr(10);
-						if(line.substr(0,16).toLowerCase()==('x-append-to-url:'))gui.httpAppendToURL=line.substr(17);
-					});
-					try{
-						//gui(JSON.parse(this.responseText));
-						var arrayOfLines=this.responseText.match(/[^\r\n]+/g);
-						if(arrayOfLines){
-							for(var i=0;i<arrayOfLines.length;i++){
-								gui(JSON.parse(arrayOfLines[i]));
-							}
-						}
-					}
-					catch(e){console.error('Could not parse response.\n',this.responseText);}
-				}else if(this.status>200 && this.status<400){
-					var url=new URL(this.responseText);
-					console.log(this.statusText+'\n  '+url.href);
-					app.location=url.href;
-					gui.sendUserEvent({});
-				}
-			}
-		}
-		function post(url,body=''){
-			var xhttp = new XMLHttpRequest();
-			xhttp.onreadystatechange = onReady;
-			if(gui.httpAppendToURL)url+=(url.includes('?')?'&':'?')+gui.httpAppendToURL;
-			xhttp.open("POST",url, true);
-			if(gui.httpParrotHeader)xhttp.setRequestHeader('X-parrot',gui.httpParrotHeader);
-			xhttp.send(body);
-		}
-		function get(url){
-			var xhttp = new XMLHttpRequest();
-			xhttp.onreadystatechange = onReady;
-			if(gui.httpAppendToURL)url+=(url.includes('?')?'&':'?')+gui.httpAppendToURL;
-			xhttp.open("GET",url, true);
-			// if(gui.httpParrotHeader)xhttp.setRequestHeader('X-parrot',gui.httpParrotHeader);
-			xhttp.send();
-		}
-		gui.action=function(time,id,val){
-			post(app.location,JSON.stringify([time,id,val]));
+		gui.userEvent=function(data){
+			fetch(app.location,{
+				method:'POST',
+				headers:{'Content-Type': 'application/json'},
+				body:JSON.stringify(data)
+			})
+			.then(r=>r.text())
+			.then(gui.appEvent);
 		};
-		gui.action(0,null,['onload']);
 		onTaskConnect();
 	}
 	function connectToTaskWS(){
 		if("WebSocket" in window){
-			gui.action = function(time,id,val){
-				gui.ws.send(JSON.stringify([time,id,val]));
+			gui.userEvent = function(data){
+				gui.ws.send(JSON.stringify(data));
 			}
 			gui.ws=new window.WebSocket(app.location);
-			gui.ws.onerror=function(e){gui(null);gui({'!':'Cannot establish connection to '+app.location});};
-			gui.ws.onopen=onTaskConnect;
+			gui.ws.onerror=function(e){gui({v:null,'!':'Cannot establish connection to '+app.location});};
 			gui.ws.onclose=function(event){
 				console.log('Connection closed ('+event.code+').');
-				//gui(['Connection closed.']);
 			};
-			gui.ws.onmessage=function(msg){
-				gui(JSON.parse(msg.data));
-			};
+			gui.ws.onopen=onTaskConnect;
+			gui.ws.onmessage=gui.appEvent;
 		}else{
-			gui(null);
-			gui([{id:'Error',v:'Your browser does not support websockets. Please use a modern browser to run this application.'}]);
+			gui({v:[null,{id:'Error',v:'Your browser does not support websockets. Please use a modern browser to run this application.'}]});
 		}
 	}
 	//////////////////////////////////////////////////////////////////////////////
@@ -964,7 +1234,7 @@ var app={};		//global reference to app software
 
 //
 // above this line are:
-//   core UINL text&button features, title, & delayed update commands (QSTU)
+//   core UINL text&button features, title, & delayed update commands
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 // below this line are:
@@ -973,64 +1243,49 @@ var app={};		//global reference to app software
 
 
 
-
+// TODO: rectx recty should be returning position on page, not within viewport
 //////////////////////////////////////////////////////////////////////////////
-// U command (true info)
+// R command (polling / property info request)
+gui.Item.prototype._rectx=function(){return (this._element.getBoundingClientRect().x-this._parent._content.getBoundingClientRect().x)};
+gui.Item.prototype._recty=function(){return (this._element.getBoundingClientRect().y-this._parent._content.getBoundingClientRect().y)};
+gui.Item.prototype._rectw=function(){return this._element.offsetWidth};
+gui.Item.prototype._recth=function(){return this._element.offsetHeight};
+gui.Item.prototype._rectcw=function(){return this._content.getBoundingClientRect().width};
+gui.Item.prototype._rectch=function(){return this._content.getBoundingClientRect().height};
+
 gui.INFO={
-	async ip(){return gui.ip=await fetch('https://api.ipify.org/').then(r=>r.text());},
-	userAgent(){return USERAGENT+'; '+navigator.userAgent;},
-	url(){return location.href;},
-	screen(){return objectify(screen);},
-	time(){
-		var t=new Date();
-		var tzo = -t.getTimezoneOffset(),
-			dif = tzo >= 0 ? '+' : '-',
-			pad = function(num) {
-				var norm = Math.floor(Math.abs(num));
-				return (norm < 10 ? '0' : '') + norm;
-			};
-		return t.getFullYear() +
-			'-' + pad(t.getMonth() + 1) +
-			'-' + pad(t.getDate()) +
-			'T' + pad(t.getHours()) +
-			':' + pad(t.getMinutes()) +
-			':' + pad(t.getSeconds()) +
-			'.' + pad(t.getMilliseconds()) +
-			dif + pad(tzo / 60) +
-			':' + pad(tzo % 60);
-	},
 	v(item){
 		if(item instanceof gui.Bin){
 			var childprop,v=[];
-			for(var child of item){
-				childprop=Object.assign({},child._prop);
-				childprop.v=gui.INFO.v(child);
+			for(var child of item._children){
+				childprop={};
+				for(var prop in child._prop){
+					childprop[prop]=(prop in gui.INFO)?gui.INFO[prop](child):child._prop[prop];
+				}
 				v.push(childprop);
 			}
 			return v;
 		}else{
-			return item._allprop.v;
+			return item._prop.v;
 		}
 	},
 	i(item){return item._getIndex()},
-	sx(item){return item._frame.scrollLeft/item._getPw()},
-	sy(item){return item._frame.scrollTop/item._getPh()},
-	cw(item){return item._allprop.cw||(Math.max(item._content.offsetWidth,item._content.scrollWidth)/item._getPw())},
-	ch(item){return item._allprop.ch||(Math.max(item._content.offsetHeight,item._content.scrollHeight)/item._getPh())},
-	w(item){return item._element.offsetWidth/(item._getParentPw()||1)},
-	h(item){return item._element.offsetHeight/(item._getParentPh()||1)},
-	x(item){return item._element.offsetLeft/(item._getParentPw()||1)}, //TODO: make sure this works for bb/cc
-	y(item){return item._element.offsetTop/(item._getParentPh()||1)} //TODO: make sure this works for bb/cc
+	fcs(item){return item._content===document.activeElement},
+	sx(item){return item._frame.scrollLeft/item._rectcw()},
+	sy(item){return item._frame.scrollTop/item._rectch()},
+	xy(item){return [item._rectx(),item._recty()]},
+	wh(item){return [item._rectw(),item._recth()]},
+	whc(item){return [item._rectcw(),item._rectch()]}
 }
-gui.Item.prototype.R=async function(v,qid){
-	var msg={};
+gui.Item.prototype.R=async function(v){
+	var r={};
 	for(var info of v){
-		if(info==='q')msg['q']=qid;
-		else if(info in gui.INFO)msg[info]=await gui.INFO[info](this);
-		else msg[info]=this._allprop[info];
-		if(msg[info]===undefined)msg[info]=null;
+		if(info in gui.INFO)r[info]=await gui.INFO[info](this);
+		else if(info.startsWith('+'))r[info]=this._prop[info];
+		else r[info]=this._prop[info];
+		if(r[info]===undefined)r[info]=null;
 	}
-	this._sendMsg(msg);
+	this._sendMsg({r:r});
 }
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1038,47 +1293,35 @@ gui.Item.prototype.R=async function(v,qid){
 //////////////////////////////////////////////////////////////////////////////
 // additional item properties
 addCSS(`
-.tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999}
-.tooltiptext > div {padding:0px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;}
-.tooltiptext > div:first-child {font-weight:bold}
-[fold="1"] {display:block;margin-bottom:30}
-[fold="1"] .content {display:none}
-[fold="1"]>.title {position:relative !important;box-shadow:0px 7px 7px -4px rgba(0,0,0,0.75) !important;display:inline}
-[fold="1"]>.title:after {content:"...";margin:10px;padding:2px;border-radius:2px}
-[fold='1']>.title:before {content:'+'}
-[fold='2']>.title:before {content:'-'}
-[fold='1']>.title , [fold='2']>.title {cursor:pointer;user-select:none}
-[fold='1']>.title:before , [fold='2']>.title:before {border:solid 1px gray;margin-right:.5em;border-radius:2px;display:inline-block;width:1em;height:1em;text-align:center;vertical-align:middle}
-[fold='1']>.title:focus , [fold='2']>.title:focus {box-shadow:none;border:none !important;outline:none;}
-[fold='1']>.title:focus:before , [fold='2']>.title:focus:before {box-shadow: 0px 0px 5px 2px var(--colorTrue)}
+.tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999;padding:5px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
+.tooltiptext::first-line {font-weight:bold}
 `);
 gui.tooltipOn=function(e){
 	if(!gui.tooltip){
 		gui.tooltip=document.body.appendChild(document.createElement('span'));
 		gui.tooltip.setAttribute('class','tooltiptext');
 	}
-	gui.tooltip.innerHTML='';
-	for(var tip of this._item._allprop.tip){
-		var tipblock=gui.tooltip.appendChild(document.createElement('div'));
-		tipblock.innerHTML=tip;
-	}
+	gui.tooltip.innerHTML=this._item._prop.tip;
 	gui.tooltip.style.visibility='visible';
 };
 gui.tooltipOff=function(e){gui.tooltip.style.visibility='hidden';};
 gui.Item.prototype.i=function(v){
 	var parent=this._parent;
 	if(parent && parent._children[v]!==this){
-		parent._children.splice(parent._children.indexOf(this),1);	//remove from _children array
+		var myindx=parent._children.indexOf(this);
+		if(myindx>-1)
+			parent._children.splice(myindx,1);	//remove from _children array
 		if(v<parent._children.length){
-			parent._content.insertBefore(this._outterElement,parent._children[v]._outterElement);
+			parent._content.insertBefore(this._outerElement,parent._children[v]._outerElement);
 			parent._children.splice(v,0,this);
 		}else{
-			parent._content.appendChild(this._outterElement);
+			parent._content.appendChild(this._outerElement);
 			parent._children.push(this);
 		}
 	}
 };
 gui.Item.prototype.tip=function(v){
+	this._content.setAttribute('title',v);
 	if(v){
 		this._element.addEventListener('mouseenter',gui.tooltipOn);
 		this._element.addEventListener('mouseleave',gui.tooltipOff);
@@ -1087,529 +1330,14 @@ gui.Item.prototype.tip=function(v){
 		this._element.removeEventListener(gui.tooltipOff);
 	}
 }
-gui.Bin.prototype.fold=function(v){
-	if(v){
-		var thisItem=this;
-		this._title.onclick=()=>{thisItem._updateProp('fold',-1*v)};
-		this._title.setAttribute('tabindex','0');
-		this._title.onkeydown=function(e){if(e.keyCode===32||e.keyCode===13){e.preventDefault();e.stopPropagation()}};
-		this._title.onkeyup=function(e){if(e.keyCode===32||e.keyCode===13){thisItem._title.onclick();e.preventDefault();e.stopPropagation()}};
-	}else{
-		this._title.onclick=null;
-		this._title.removeAttribute('tabindex');
-		this._title.onkeydown=null;
-		this._title.onkeyup=null;
-	}
+gui.Item.prototype.ef=function(v){
+	this.style.borderWidth=(1+v/2)+'px';
+	this.style.strokeWidth=(1+v/2)+'px';
+	this.style.fontWeight=(400+v*300);
 }
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// interactive options/events
-addCSS(`
-[in="-1"] {pointer-events:none}
-.controlWidth {z-index:10000;cursor:ew-resize;height:50%;width:0px;border-right:dotted 3px gray;position:absolute;right:-2.5px;top:25%}
-.controlHeight {z-index:10000;cursor:ns-resize;width:50%;height:0px;border-bottom:dotted 3px gray;position:absolute;bottom:-2.5px;left:25%}
-[man*='x'],[man*='y'] {cursor:move}
-`);
-//manipulation controls------
-gui.Item.prototype.man=function(v){
-	if(v && v.constructor===Array){
-		const element=this._element,item=this;
-		//------------w/h manipulation------------
-		if(v.includes('w')){
-			if(!this._manW){
-				this._manW=element.appendChild(document.createElement('div'));
-				this._manW.className='controlWidth';
-				this._manW.setAttribute('draggable','true');
-				this._manW.addEventListener('drag',e=>{
-					const x=element.getBoundingClientRect().left;
-					if(e.clientX>(x+1)){
-						element.style.width=e.clientX-x;
-						// gui.updateInternalWidths();
-					}
-				});
-				this._manW.addEventListener('dragend',e=>item._sendMsg({w:gui.INFO.w(item)}));
-			}
-		}else if(this._manW){
-			this._element.removeChild(this._manW);
-		}
-		if(v.includes('h')){
-			if(!this._manH){
-				this._manH=element.appendChild(document.createElement('div'));
-				this._manH.className='controlHeight';
-				this._manH.setAttribute('draggable','true');
-				this._manH.addEventListener('drag',e=>{
-					const y=element.getBoundingClientRect().top;
-					if(e.clientY>(y+1)){
-						element.style.height=e.clientY-y;
-						// gui.updateInternalHeights();
-					}
-				});
-				this._manH.addEventListener('dragend',e=>item._sendMsg({h:gui.INFO.h(item)}));
-			}
-		}else if(this._manH){
-			this._element.removeChild(this._manH);
-		}
-		//------------x/y manipulation------------
-		const moveX=v.includes('x'),moveY=v.includes('y');
-		if(moveX||moveY){
-			const parentNode=this._element.parentNode;
-			let f={};
-			if(moveX&&moveY){
-				f.move=e=>{
-					element.style.left=e.clientX+f.offsetX;
-					element.style.top=e.clientY+f.offsetY;
-				};
-			}else if(moveX){
-				f.move=e=>{element.style.left=e.clientX+f.offsetX};
-			}else{
-				f.move=e=>{element.style.top=e.clientY+f.offsetY};
-			}
-			f.removeMouseMove=function(){
-				parentNode.removeEventListener('mousemove',f.move,false);
-				parentNode.removeEventListener('mouseup',f.removeMouseMove,false);
-				parentNode.removeEventListener('mouseleave',f.removeMouseMove,false);
-				var r={};
-				if(moveX)r.x=gui.INFO.x(item);
-				if(moveY)r.y=gui.INFO.y(item);
-				item._sendMsg(r);
-			}
-			this._content.onmousedown=this._title.onmousedown=(e)=>{
-				f.offsetX=parseInt(element.offsetLeft)-e.clientX;
-				f.offsetY=parseInt(element.offsetTop)-e.clientY;
-				parentNode.addEventListener('mousemove',f.move,false)
-				parentNode.addEventListener('mouseup',f.removeMouseMove,false);
-				parentNode.addEventListener('mouseleave',f.removeMouseMove,false);
-				e.preventDefault();
-			};
-		}else{
-			//todo: remove event listener
-		}
-		//------------i/null manipulation---------
-		//todo: ...
-	}else{
-		//todo: remove all controls
-	}
-}
-gui.Item.prototype.focus=function(v){
-	if(this._allprop.in>0){
-		if(v)this._content.focus();
-		else this._content.blur();
-	}
-}
-//TODO: mb, mc2, mcc2, md2, mu2, copy (w drag), cut, paste (w drop), ended
-//mouse events---------------
-gui.EVENTSjs={
-	mousemove:'m',
-	mousedown:'md',
-	mouseup:'mu',
-	click:'mc',
-	dblclick:'mcc'
-};
-gui.sendEventXY=function(e){
-	var item=this._item,x,y,r=item._content.getBoundingClientRect();
-	x=(e.clientX-r.left)/(item._getPw()||1);
-	y=(e.clientY-r.top)/(item._getPh()||1);
-	item._event(gui.EVENTSjs[e.type],[x,y]);
-}
-//scroll events--------------
-gui.checkSx=function(){
-	var sx=gui.INFO.sx(this._item);
-	if(sx!==this._item._allprop.sx){
-		this._item._allprop.sx=sx;
-		this._item._event('sx',sx);
-	}
-}
-gui.checkSy=function(){
-	var sy=gui.INFO.sy(this._item);
-	if(sy!==this._item._allprop.sy){
-		this._item._allprop.sy=sy;
-		this._item._event('sy',sy);
-	}
-}
-//loop events----------------
-gui.Item.prototype._checkProp=function(propName){
-	var val=gui.INFO[propName](this);
-	if(val!==this._propOld[propName]){
-		this._propOld[propName]=val;
-		if(propName==='w'){
-			if(this._allprop.on && this._allprop.on.w)this._event('w',val);
-			if(this._allprop.iw)this._updateInternalWidth();
-		}else if(propName==='h'){
-			if(this._allprop.on && this._allprop.on.h)this._event('h',val);
-			if(this._allprop.ih)this._updateInternalHeight();
-		}else{
-			this._event(propName,val);
-		}
-	}
-}
-//overlap event--------------
-gui.waitingForItems={};
-gui.waitingFor=function(){
-	for(var uidjson in gui.waitingForItems){
-		var item,uid=JSON.parse(uidjson);
-		if(item=gui.rootContainer._searchId(uid.constructor===Array?uid:[uid])){
-			gui.waitingForItems[uidjson](item);
-			delete gui.waitingForItems[uidjson];
-			return;
-		}
-	}
-	if(Object.keys(gui.waitingForItems).length)
-		setTimeout(gui.waitingFor,30);
-}
-gui.overlap=function(b1,b2){
-	if(b1.left>b2.right||b2.left>b1.right||b1.top>b2.bottom||b2.top>b1.bottom)return false;
-	return true;
-}
-gui.Item.prototype._addOverlapTarget=function(targetKey,item){
-	this._overlapTargets[targetKey]=item;
-	if(item._overlapSeekers)
-		item._overlapSeekers.add(this);
-	else
-		item._overlapSeekers=new Set([this]);
-	item._moveTriggers.overlapT=()=>item._checkOverlapT();
-}
-gui.Item.prototype._overlapChecking=function(){
-	if(this._allprop.on&&this._allprop.on.o){
-		this._moveTriggers.overlap=()=>this._checkOverlap();
-		this._overlapTargets={};
-		this._priorOverlap=new Set();
-		for(var t of this._allprop.on.o){
-			var targetKey=JSON.stringify(t);
-			var item=gui.rootContainer._searchId(t);
-			if(item){
-				this._addOverlapTarget(targetKey,item);
-			}else{
-				gui.waitingForItems[targetKey]=item=>this._addOverlapTarget(targetKey,item);
-				gui.waitingFor();
-			}
-		}
-	}else{
-		delete this._moveTriggers.overlap;
-		for(var item of this._overlapTargets){
-			item._overlapSeekers.delete(this);
-			if(!item._overlapSeekers.size)
-				delete item._moveTriggers.overlapT;
-		}
-	}
-}
-gui.Item.prototype._sendOverlaps=function(){
-	var item,overlaps=[];
-	for(item of this._priorOverlap)
-		overlaps.push(item._getId());
-	this._sendMsg({o:overlaps});
-}
-gui.Item.prototype._checkOverlap=function(){
-	var stateChanged,i,targetKey,item,myBounds=this._element.getBoundingClientRect();
-	for(targetKey in this._overlapTargets){
-		item=this._overlapTargets[targetKey];
-		if(document.body.contains(item._element)){
-			if(gui.overlap(item._element.getBoundingClientRect(),myBounds)){
-				if(!this._priorOverlap.has(item)){
-					this._priorOverlap.add(item);
-					stateChanged=true;
-				}
-			}else if(this._priorOverlap.has(item)){
-				this._priorOverlap.delete(item);
-				stateChanged=true;
-			}
-		}else{
-			delete this._overlapTargets[targetKey];
-			gui.waitingForItems[targetKey]=item=>this._addOverlapTarget(targetKey,item);
-			gui.waitingFor();
-		}
-	}
-	if(stateChanged)
-		this._sendOverlaps();
-}
-gui.Item.prototype._checkOverlapT=function(){
-	var stateChanged,item,myBounds=this._element.getBoundingClientRect();
-	for(item of this._overlapSeekers){
-		if(document.body.contains(item._element)){
-			if(gui.overlap(item._element.getBoundingClientRect(),myBounds)){
-				if(!item._priorOverlap.has(this)){
-					item._priorOverlap.add(this);
-					item._sendOverlaps();
-				}
-			}else if(item._priorOverlap.has(this)){
-				item._priorOverlap.delete(this);
-				item._sendOverlaps();
-			}
-		}else{
-			this._overlapSeekers.delete(item);
-			if(!this._overlapSeekers.size)
-				delete this._moveTriggers.overlapT;
-		}
-	}
-}
-//event functions------------
-gui.EVENTS={
-	v:{input:function(e){this._item._event('v',this._item._allprop.v)}},
-	sx:{scroll:gui.checkSx},
-	sy:{scroll:gui.checkSy},
-	o:null, //defined above
-	focus:{"focus":function(e){this._item._event('focus',1)},"blur":function(e){this._item._event('focus',0)}},
-	me:{"mouseenter":function(e){this._item._event('me',1)},"mouseleave":function(e){this._item._event('me',0)}},
-	m:{"mousemove":gui.sendEventXY},
-	mc:{"click":gui.sendEventXY},
-	mcc:{"dblclick":gui.sendEventXY},
-	md:{"mousedown":gui.sendEventXY},
-	mu:{"mouseup":gui.sendEventXY},
-	kd:{"keydown":function(e){if(!e.repeat)this._item._event('kd',e.key)}},
-    ku:{"keyup":function(e){if(!e.repeat)this._item._event('ku',e.key)}},
-	k:{"keypress":function(e){this._item._event('k',e.key)}}
-};
-gui.Item.prototype._event=function(key,val){	//todo: check how this works for boundary crossing
-	if(this._allprop.on[key].length){
-		for(var filter of this._allprop.on[key]){
-			if(val==filter)this._sendMsg({[key]:val});
-		}
-	}else{
-		this._sendMsg({[key]:val});
-	}
-}
-gui.Item.prototype.on=function(v){
-	if(v && typeof(v)==='object'){
-		for(var e in v){
-			if(e==='o'){
-				setTimeout(()=>this._overlapChecking(),10);
-			}else if(gui.EVENTS[e]){
-				for(var jsListener in gui.EVENTS[e]){
-					if(v[e]){
-						(this===gui.rootContainer?document.body:this._element).addEventListener(jsListener,gui.EVENTS[e][jsListener]);
-					}else{
-						(this===gui.rootContainer?document.body:this._element).removeEventListener(jsListener,gui.EVENTS[e][jsListener]);
-					}
-				}
-			}else if(e in gui.INFO){
-				if(v[e]){
-					this._propWatch.add(e);
-					gui.propWatch.add(this);
-				}else{
-					this._propWatch.delete(e);
-				}
-			}//todo: add animation watching
-		}
-	// }else{
-		//todo! remove all listeners
-	}
-}
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// visual size and location options
-addCSS(`
-[x] , [y] {position:absolute;margin:0px}
-[h] , [w] {border:solid 1px gray}
-[C]:not([C='l']) {--rotate:0deg;--shiftX:0px;--shiftY:0px;transform:translateX(var(--shiftX)) translateY(var(--shiftY)) rotate(var(--rotate));transform-origin:center;}
-[style~="left:"][cc="1"],[style~="left:"][cc="3"] {--shiftX:-50%}
-[style~="right:"][cc="1"],[style~="right:"][cc="3"] {--shiftX:50%}
-[style~="top:"][cc="2"],[style~="top:"][cc="3"] {--shiftY:-50%}
-[style~="bottom:"][cc="2"],[style~="bottom:"][cc="3"] {--shiftY:50%}
-[w]>.frame , [w]>.frame>.content , [w]>.frame.content {min-width:100%}
-[h]>.frame , [h]>.frame>.content , [h]>.frame.content {min-height:100%}
-`); //TODO? childPos overflow may compete with sx/sy functionality
-gui.Item.prototype.w=function(v){
-	v=this._getSize(v,this._getParentPw());
-	this._element.style.width=v;
-	// if(!this._parent._allprop.cw && !(this._allprop.bb&1) && gui.INFO.cw(this._parent)<(this._allprop.x+v))
-		// this._parent.cw(this._allprop.x+v);
-	// if(!this._allprop.iw)this._updateInternalWidth(v);
-	// gui.updateInternalWidths();
-	this._moveHook();
-};
-gui.Item.prototype.h=function(v){
-	v=this._getSize(v,this._getParentPh());
-	this._element.style.height=v;
-	// console.log(this._getId(),gui.INFO.ch(this._parent),this._allprop.y+v);
-	// if(!this._parent._allprop.ch && !(this._allprop.bb&2) && gui.INFO.ch(this._parent)<(this._allprop.y+v))
-		// this._parent.ch(this._allprop.y+v);
-	// if(!this._allprop.ih)this._updateInternalHeight(v);
-	// gui.updateInternalHeights();
-	this._moveHook();
-};
-gui.Item.prototype.cw=function(v){
-	this._content.style.width=this._getSize(v,this._getPw());
-	if(this._axisX)this._drawAxisX();
-	// gui.updateInternalWidths();
-}
-gui.Item.prototype.ch=function(v){
-	this._content.style.height=this._getSize(v,this._getPh());
-	if(this._axisY)this._drawAxisY();
-	// gui.updateInternalHeights();
-}
-gui.Bin.prototype.iw=function(v){
-	this._updateInternalWidth();
-	this._propWatch.add('w');
-	gui.propWatch.add(this);
-}
-gui.Bin.prototype.ih=function(v){
-	this._updateInternalHeight();
-	this._propWatch.add('h');
-	gui.propWatch.add(this);
-}
-gui.Item.prototype.sx=function(v){this._frame.scrollLeft=v<0?this._getSize(gui.INFO.cw(this)+v,this._getPw()):this._getSize(v,this._getPw());}
-gui.Item.prototype.sy=function(v){this._frame.scrollTop=v<0?this._getSize(gui.INFO.ch(this)+v,this._getPh()):this._getSize(v,this._getPh());}
-gui.Item.prototype.z=function(v){this._element.style.zIndex=v;};
-gui.Item.prototype.rot=function(v){this._element.style.setProperty('--rotate',v+'deg');};
-gui.Item.prototype.x=function(v,batch){
-	if(this._allprop.bb&1)this._element.style.right=this._getSize(v,this._getParentPw());
-	else this._element.style.left=this._getSize(v,this._getParentPw());
-	if(!batch)this._moveHook();
-};
-gui.Item.prototype.y=function(v,batch){
-	if(this._allprop.bb&2)this._element.style.bottom=this._getSize(v,this._getParentPh());
-	else this._element.style.top=this._getSize(v,this._getParentPh());
-	// if(!this._moveTriggers.y)this._moveTriggers.y=()=>{
-		// var top=parseFloat(getComputedStyle(this._element.top));
-		// var height=parseFloat(getComputedStyle(this._element.height));
-		// if(this._parent
-		// console.log(this);
-		// // this._parent.ch();
-	// };
-	if(!batch)this._moveHook();
-};
-gui.Item.prototype.bb=function(v){
-	if(v&1)this._element.style.left='';
-	else this._element.style.right='';
-	if(v&2)this._element.style.top='';
-	else this._element.style.bottom='';
-	if(this._allprop.x!==undefined)this.x(this._allprop.x);
-	if(this._allprop.y!==undefined)this.y(this._allprop.y);
-	this._moveHook();
-}
-gui.Item.prototype.cc=function(v){this._moveHook();}
-gui.Item.prototype._getPw=function(){return this._pw||this._parent._getPw();}
-gui.Item.prototype._getPh=function(){return this._ph||this._parent._getPh();}
-gui.Item.prototype._getParentPw=function(){return this._parent?this._parent._getPw():1;}
-gui.Item.prototype._getParentPh=function(){return this._parent?this._parent._getPh():1;}
-gui.Item.prototype._updateInternalWidth=function(v){
-	if(this._allprop.iw)this._pw=this._element.getBoundingClientRect().width/this._allprop.iw;
-	//if(this._allprop.sx)this.sx(this._allprop.sx);
-	if(this._allprop.cw)this.cw(this._allprop.cw);
-}
-gui.Item.prototype._updateInternalHeight=function(v){
-	if(this._allprop.ih)this._ph=this._element.getBoundingClientRect().height/this._allprop.ih;
-	//if(this._allprop.sy)this.sy(this._allprop.sy);
-	if(this._allprop.ch)this.ch(this._allprop.ch);
-}
-gui.Bin.prototype._updateInternalWidth=function(v){
-	if(this._allprop.iw)this._pw=this._element.getBoundingClientRect().width/this._allprop.iw;
-	//if(this._allprop.sx)this.sx(this._allprop.sx);
-	if(this._allprop.cw)this.cw(this._allprop.cw);
-	if(this._axisX)this._drawAxisX();
-	this._updateChildrenX();
-}
-gui.Bin.prototype._updateInternalHeight=function(v){
-	if(this._allprop.ih)this._ph=this._element.getBoundingClientRect().height/this._allprop.ih;
-	//if(this._allprop.sy)this.sy(this._allprop.sy);
-	if(this._allprop.ch)this.ch(this._allprop.ch);
-	if(this._axisY)this._drawAxisY();
-	this._updateChildrenY();
-}
-gui.Bin.prototype._updateChildrenX=function(){
-	for(var item of this){
-		if(item._allprop.x!==undefined)
-			item.x(item._allprop.x,true);								//update x
-		if(item._allprop.w!==undefined){
-			item._element.style.width=this._getPw()*item._allprop.w;	//update w
-		}
-		item._updateInternalWidth();
-	}
-}
-gui.Bin.prototype._updateChildrenY=function(){
-	for(var item of this){
-		if(item._allprop.y!==undefined)
-			item.y(item._allprop.y,true);								//update y
-		if(item._allprop.h!==undefined){
-			item._element.style.height=this._getPh()*item._allprop.h;	//update h
-		}
-		item._updateInternalHeight();
-	}
-}
-gui.Item.prototype._getSize=function(v,dimensionP){
-	if(v===null)return "";
-	return v*(dimensionP||1);
-}
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// emphasis options
-addCSS(`
-[shp] {text-align:center;border-width:1px;stroke-width:1px}
-[shp='0'] {border-radius:0px !important}
-[shp='1'] {border-radius:100% !important}
-[shp^='['] {background-color:transparent !important;border-width:0px !important}
-svg {width:100%;height:100%;left:0px;top:0px;position:absolute;z-index:0}
-[str='-2'] {border-width:.5px;stroke-width:.5px;font-size:50%;opacity:0.8}
-[str='-1'] {border-width:.5px;stroke-width:.5px;font-size:75%;opacity:0.9}
-[str='1'] {border-width:3px;stroke-width:2px;font-weight:bold}
-[str='2'] {border-width:4px;stroke-width:3px;font-weight:bold;text-decoration:underline;color:red}
-[opq='0'] {background-color:transparent !important;fill:transparent !important;}
-[opq='1'] {background-color:var(--color0);fill:var(--color0)}
-.tag0 {background-color:hsl(0,50%,80%);fill:hsl(0,50%,80%)}
-[opq='0'].tag0 {border-color:hsl(0,50%,80%);stroke:hsl(0,50%,80%)}
-.tag1 {color:#46f}
-.frame {text-decoration:inherit}
-.content {text-decoration:inherit}
-`);
-gui.Item.prototype.shp=function(v){
-	if(v.constructor===Array){
-		var d='M'+v[0]+',0h'+v[1];					//horizontal line on top edge
-		var shft=100-v[0]-v[1];
-		var nxt=2;
-		if(v[nxt]==='o'){
-			d+='q'+shft+',0 ';
-			nxt++;
-		}else if(v[nxt]==='c'){
-			d+='q0,'+v[++nxt]+' ';
-		}else d+='l';
-		d+=shft+','+v[nxt]+'v'+v[++nxt];			//vertical line on right edge
-		shft=100-v[nxt-1]-v[nxt];
-		if(v[++nxt]==='o'){
-			d+='q0,'+shft+' ';
-			nxt++;
-		}else if(v[nxt]==='c'){
-			d+='q-'+v[++nxt]+',0 ';
-		}else d+='l';
-		d+='-'+v[nxt]+','+shft+'h-'+v[++nxt];		//horizontal line on bottom edge
-		shft=v[nxt-1]+v[nxt]-100;
-		if(v[++nxt]==='o'){
-			d+='q'+shft+',0 ';
-			nxt++;
-		}else if(v[nxt]==='c'){
-			d+='q0,-'+v[++nxt]+' ';
-		}else d+='l';
-		d+=shft+',-'+v[nxt]+'v-'+v[++nxt];			//vertical line on left edge
-		shft=v[nxt-1]+v[nxt]-100;
-		if(v[++nxt]==='o'){
-			d+='q0,'+shft+' ';
-			nxt++;
-		}else if(v[nxt]==='c'){
-			d+='q'+v[0]+',0 ';
-		}else d+='l';
-		d+=v[0]+','+shft;
-		if(!this._svg){
-			this._svg=this._element.insertBefore(createSVG('svg'),this._element.children[0]);
-			this._svg.setAttribute('viewBox','0 0 100 100');
-			this._svg.setAttribute('preserveAspectRatio','none');
-		}
-		if(!this._path){
-			this._path=this._svg.appendChild(createSVG('path'));
-		}
-		this._path.setAttribute('d',d);
-		this._path.setAttribute('vector-effect','non-scaling-stroke');
-	}else if(this._svg){
-		this._element.removeChild(this._svg);
-		delete this._svg;
-		delete this._path;
-	}
-};
-gui.Item.prototype.opq=function(v){};
-gui.Item.prototype.str=function(v){}
+// gui.Item.prototype.af=function(v){
+// 	this.style.backgroundColor=; ? red v blue? thumb up/dn icons?
+// }
 gui.Item.prototype.tag=function(v){
 	this._element.className='';
 	if(this._element===this._content)this._element.classList.add('content');
@@ -1622,45 +1350,257 @@ gui.Item.prototype.tag=function(v){
 		}
 	}
 }
+gui.Item.prototype.sx=function(v){this._frame.scrollLeft=v+'%';}
+gui.Item.prototype.sy=function(v){this._frame.scrollTop=v+'%';}
 //////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// interactive options
+addCSS(`
+[in="-1"] {pointer-events:none}
+.controlWidth {z-index:10000;cursor:ew-resize;height:50%;width:0px;border-right:dotted 3px gray;position:absolute;right:-2.5px;top:25%}
+.controlHeight {z-index:10000;cursor:ns-resize;width:50%;height:0px;border-bottom:dotted 3px gray;position:absolute;bottom:-2.5px;left:25%}
+.controlMove {z-index:10000;cursor:move;width:50%;height:0px;border-top:solid 3px gray;position:absolute;top:-2.5px;left:25%}
+[man*='x'],[man*='y'] {cursor:move}
+`);
+gui.Bin.prototype._hasDescendant=function(item){
+	while(item=item._parent)
+		if(item===this)return true;
+}
+gui.disableFocus=function(e){
+	e.preventDefault();
+	e.stopPropagation();
+}
+gui.disableElement=function(el){
+	el.style.pointerEvents='none';
+	el.addEventListener('focusin',gui.disableFocus);
+	if(el===document.activeElement || el.contains(document.activeElement))
+		document.activeElement.blur();
+}
+gui.enableElement=function(el){
+	el.style.pointerEvents='';
+	el.removeEventListener('focusin',gui.disableFocus);
+}
+gui.Bin.prototype.in=function(v){
+	if(v===-1){
+		gui.disableElement(this._outerElement);
+	}else if(this._disabled){
+		gui.enableElement(this._outerElement);
+	}
+}
+//forced focus---------------
+gui.Item.prototype.fcs=function(v){
+	if(this._prop.in>0){
+		if(v)this._content.focus();
+		else this._content.blur();
+	}
+}
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// events
+gui.preventDefault=function(e){e.preventDefault();}
+//pointer events---------------
+gui.POINTER_EVENTS={
+	mousemove:'p',
+	mousedown:'pd',
+	mouseup:'pu',
+	click:'pc',
+	dblclick:'pcc'
+};
+gui.sendEventXY=function(e){
+	if(!e.button){
+		var item=this._item,x,y,r=item._content.getBoundingClientRect(),event=gui.POINTER_EVENTS[e.type];
+		x=e.clientX-r.left;
+		y=e.clientY-r.top;
+		if(item._prop.on[event][0])x=Math.round2(x,item._prop.on[event][0]);
+		if(item._prop.on[event][1])y=Math.round2(y,item._prop.on[event][1]);
+		if(item['_lastX'+event]!==x || item['_lastY'+event]!==y){
+			item._event(event,[x,y],true);
+			item['_lastX'+event]=x;
+			item['_lastY'+event]=y;
+		}
+	}
+}
+gui.sendMouseButtonEvent=function(e){
+	if(e.button){
+		var item=this._item,x,y,r=item._content.getBoundingClientRect();
+		x=e.clientX-r.left;
+		y=e.clientY-r.top;
+		item._event(e.type==='mousedown'?'md':'mu',
+			[e.button===1?2:(e.button===2?1:e.button),x,y]);
+	}
+}
+//scroll events--------------
+gui.checkSx=function(){
+	var item=this._item,sx=gui.INFO.sx(item);
+	if(item._prop.on.sx[0])sx=Math.round2(sx,item._prop.on.sx[0]);
+	if(sx!==item._prop.sx){
+		item._prop.sx=sx;
+		item._event('sx',sx,true);
+	}
+}
+gui.checkSy=function(){
+	var item=this._item,sy=gui.INFO.sy(item);
+	if(item._prop.on.sy[0])sy=Math.round2(sy,item._prop.on.sy[0]);
+	if(sy!==item._prop.sy){
+		item._prop.sy=sy;
+		item._event('sy',sy,true);
+	}
+}
+//loop events checking wh, xy, and whc----------------
+gui.Item.prototype._checkProp=function(propName){
+	var vals=gui.INFO[propName](this);
+	// if either first or second value (widht, height or x, y) has changed, fire event
+	if(!this._propOld[propName] || vals[0]!==this._propOld[propName][0] || vals[1]!==this._propOld[propName][1]){
+		this._propOld[propName]=vals;
+		this._event(propName,vals);
+	}
+}
+//event functions------------
+gui.EVENTS={
+	v:{input:function(e){this._item._event('v',this._item._prop.v)}},
+	sx:{scroll:gui.checkSx},
+	sy:{scroll:gui.checkSy},
+	o:null, //defined above
+	fold:null, //defined in gui.Item.prototype.fold
+	fcs:{"focus":function(e){this._item._event('fcs',1)},"blur":function(e){this._item._event('fcs',0)}},
+	po:{"mouseenter":function(e){this._item._event('po',1)},"mouseleave":function(e){this._item._event('po',0)}},
+	p:{"mousemove":gui.sendEventXY},
+	pc:{"click":gui.sendEventXY},
+	pcc:{"dblclick":gui.sendEventXY},
+	pd:{"mousedown":gui.sendEventXY},
+	pu:{"mouseup":gui.sendEventXY},
+	md:{"mousedown":gui.sendMouseButtonEvent},
+	mu:{"mouseup":gui.sendMouseButtonEvent},
+	sw:{"mousewheel":function(e){if(e.wheelDeltaY)this._item._event('sw',e.wheelDeltaY>0?1:0)}},
+	swh:{"mousewheel":function(e){if(e.wheelDeltaX)this._item._event('swh',e.wheelDeltaX>0?1:0)}},
+	k:{"keydown":function(e){if(!e.repeat)this._item._event('k',e.key)}},
+	ku:{"keyup":function(e){if(!e.repeat)this._item._event('ku',e.key)}},
+};
+gui.Item.prototype._event=function(key,val,ignoreFilter){
+	var filter=this._prop.on[key];
+	if(ignoreFilter 
+		|| !filter.length
+		|| filter.includes(val) 
+		|| ((key==='md' || key==='mu') && filter.includes(val[0]))
+	)this._sendMsg({[key]:val});
+}
+gui.Item.prototype.on=function(v){
+	if(!v){
+		v={};
+		for(var e in this._on){
+			v[e]=null;
+		}
+	}
+	if(!this._on)this._on={};
+	for(var e in v){
+		this._on[e]=v[e];
+		if(gui.EVENTS[e]){
+			for(var jsListener in gui.EVENTS[e]){
+				if(v[e]){
+					((e==='sx'||e==='sy')?this._frame:
+						(this===gui.rootContainer?document.body:
+							(e==='fcs'?this._content:this._element)))
+							.addEventListener(jsListener,gui.EVENTS[e][jsListener]);
+					if(e==='md'||e==='mu'){ //cancel context menu
+						(this===gui.rootContainer?document.body:this._element)
+							.addEventListener('contextmenu',gui.preventDefault);
+					}
+				}else{
+					((e==='sx'||e==='sy')?this._frame:
+						(this===gui.rootContainer?document.body:this._element))
+							.removeEventListener(jsListener,gui.EVENTS[e][jsListener]);
+					if(e==='md'||e==='mu'){ //add back context menu
+						(this===gui.rootContainer?document.body:this._element)
+							.removeEventListener('contextmenu',gui.preventDefault);
+					}
+				}
+				this._frame._item=this;
+			}
+		}else if(e==='xy'||e==='wh'||e==='whc'){
+			if(v[e]){
+				this._propWatch.add(e);
+				gui.propWatch.add(this);
+			}else{
+				this._propWatch.delete(e);
+			}
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////////
+
+
 
 
 //////////////////////////////////////////////////////////////////////////////
 // additional bin options
-gui.Bin.prototype._default=function(propName,propVal){
-	if(propVal===null){
-		if(propName in this._parent._defaults)
-			propVal=this._defaults[propName]=this._parent._defaults[propName];
-		else
-			delete this._defaults[propName];
-	}else{
-		this._defaults[propName]=propVal;
-	}
-	for(var child of this){
-		if(!(propName in child._prop && propName!='C')){
-			child._refreshProp(propName,propVal);
-		}
-		if(child.df && !(propName in child._defaults))
-			child._default(propName,propVal);
+addCSS(`
+.controlTitle {cursor:pointer;user-select:none;display:inline-block;width:1em;height:1em;text-align:center;font-family:monospace;overflow:visible !important;border-radius:2px;border:solid 0.5px #ddd;margin-right:0.25em}
+[fold="2"]>.title {position:relative !important;display:block}
+[fold="2"]>.title:after {content:"...";padding:2px;}
+[fold="2"]>.frame {display:none}
+.controlFold:hover {background-color:#ddd}
+[fold='1']>.title>.controlFold:before {content:'-'}
+[fold='2']>.title>.controlFold:before {content:'+'}
+.controlClose:hover {background-color:f33}
+.controlClose:before {content:'×'}
+`);
+gui.Bin.prototype.fold=function(v){
+	if(v && !this._manFold){
+		const element=this._element,item=this;
+		this._manFold=document.createElement('div');
+		this._title.prepend(this._manFold);
+		if(this._manClose)this._title.prepend(this._manClose);
+		this._manFold.className='controlTitle controlFold';
+		this._manFold.onclick=function(e){
+			item._updateProp('fold',3-item._prop.fold);
+			if(item._prop.on&&item._prop.on.fold){
+				item._event('fold',item._prop.fold);
+			}
+		};
+	}else if(!v && this._manFold){
+		this._manFold.remove();
+		delete this._manFold;
 	}
 }
-gui.Bin.prototype.df=function(v){
-	if(v===null){
-		v={};
-		for(var propName in this._defaults)this._default(propName,null);
-	}else
-		for(var propName in v)this._default(propName,v[propName]);
+gui.Bin.prototype._userClosed=function(){
+	if(this._prop.on && this._prop.on.v && (this._prop.on.v.length===0 || this._prop.on.v.includes(null)))
+		this._sendMsg({v:null});
+	this._parent._removeChild(this);
+}
+gui.Bin.prototype.cls=function(v){
+	if(v){
+		const element=this._element,item=this;
+		//------------close button------------
+		this._manClose=document.createElement('div');
+		this._title.prepend(this._manClose);
+		this._manClose.className='controlTitle controlClose';
+		this._manClose.onclick=function(){item._userClosed()};
+	}else if(this._manClose){
+		this._manClose.remove();
+		delete this._manClose;
+	}
 }
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
 // additional button options
+addCSS(`
+[c='bin']:not(tr)[in="1"] {cursor:pointer;user-select:none;-moz-user-select:none;}
+[btnin="0"] {pointer-events:none}
+[c='btn'][in="0"] , [c='opt'][in="0"] , [c='hold'][in="0"] {opacity:.75;pointer-events:none}
+`);
 gui.Btn.prototype.in=function(v){
-	if(v){
+	if(v>0){
 		this._setAttr('tabindex',0);
+		// this._bind(this._boundTo);
 	}else{
 		this._setAttr('tabindex',null);
+		// this._unbind();
 	}
 }
 //////////////////////////////////////////////////////////////////////////////
@@ -1670,7 +1610,7 @@ gui.Btn.prototype.in=function(v){
 // hot keys
 gui.Item.prototype.keys=function(v){
 	if(v==null || v.length==0){
-		for(var k of this._allprop.keys)
+		for(var k of this._prop.keys)
 			if(gui.keys[k]==this)
 				delete gui.keys[k];
 		if(Object.keys(gui.keys).length==0){
@@ -1688,23 +1628,26 @@ gui.Item.prototype.keys=function(v){
 }
 gui.keys={};
 gui.keyCheck=function(e){
-	if(!e.repeat){
+	if(!(e.target.isContentEditable && e.target._item._prop.in===1) && //this isn't text input
+		!(e.target.constructor===HTMLInputElement && !e.target.disabled)){ //this isn't numeric input
 		var item=gui.keys[e.key];
-		if(item && !(e.target.isContentEditable && e.target._item.in>0)){
-			if(document.body.contains(item._element)){
+		if(item){
+			if(item._exists()){
 				e.preventDefault();
 				e.stopPropagation();
-				if(e.type==='keydown'){
-					if(item._allprop.fold===2){			//fold
-						item._updateProp('fold',1);
-					}else if(item._allprop.fold===1){	//unfold
-						item._updateProp('fold',2);
-					}else if(item._allprop.in===1){ 	//focus
-						//todo: add focus
-						if(item._btnDown)item._btnDown();
+				if(!e.repeat){
+					if(e.type==='keydown'){
+						if(item._prop.fold===2){				//fold
+							item._updateProp('fold',1);
+						}else if(item._prop.fold===1){		//unfold
+							item._updateProp('fold',2);
+						}else if(item._prop.in!==0 && item._prop.in!==-1){
+							item._content.focus();			  //focus
+							if(item._btnDown)item._btnDown();   //push button
+						}
+					}else if(e.type==='keyup' && item._btnUp){
+						item._btnUp();
 					}
-				}else if(e.type==='keyup' && item._btnUp){
-					item._btnUp();
 				}
 			}else{
 				delete gui.keys[e.key];
@@ -1720,107 +1663,171 @@ gui.keyCheck=function(e){
 
 
 //////////////////////////////////////////////////////////////////////////////
-// additional text options
+// datetime
 addCSS(`
-[contenteditable] {background-color:white;min-width:100px;max-height:10em;padding-left:5px;padding-right:5px;border:solid 1px lightgray;font-family:monospace;pointer-events:all}
-`);
-gui.Txt.prototype.in=function(v){
-	var item=this,c=this._content;
-	c._removeListeners();
-	if(v){
-		c.setAttribute('contenteditable','plaintext-only');
-		var oneline=!(c.innerText.includes('\n')||c.innerText.includes('\r'));
-		var lastVal=item._allprop.v;
-		function send(){
-			if(lastVal!==item._prop.v){
-				item._sendMsg({v:item._prop.v});
-				lastVal=item._prop.v;
-			}
-			// if(item._allprop.v!=c.innerText){
-				// item._allprop.v=item._prop.v=c.innerText;
-				// item._sendMsg({v:c.innerText});
-			// }
-			// item._sendIfNew('v',item._allprop.v);
-		}
-		c._listen('input',function(e){
-			if(oneline&&(c.innerText.includes('\n')||c.innerText.includes('\r')))
-				c.innerHTML=c.innerText.replace(/\n|\r/g,' ');
-			item._allprop.v=item._prop.v=c.innerText;
-			// if(this.v==2)send();
-		});
-		c._listen('blur',send);
-		if(oneline)
-			c._listen('keypress',(e)=>{if(e.keyCode==13){e.preventDefault();send();}});
-	}else{
-		c.removeAttribute('contenteditable');
+[c='dt'] * {display:inline-block;vertical-align:middle}
+[c='dt'] > .title:empty {width:0px;height:0px;overflow:hidden}
+[c='dt'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
+[c='dt'] > .title:not(:empty):after {content:":"}
+[c='dt'] > .content {display:inline-block}
+[c='dt'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:bottom}
+`)
+gui.Dt=class extends gui.Num{
+	_initContent(){
+		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
+		this._frame=this._element;
+		this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
+		this._content=this._frame.appendChild(document.createElement('input'));			//content (includes value)
+		this._content.type='datetime-local';
+		this._content.disabled=true;
+		this._parent._placeChildElement(this);
 	}
-};
+	_initDefaults(prop){
+		if(!('v' in prop))this._classDefaults.v=localTimestamp();
+		super._initDefaults(prop);
+	}
+	_display(v,step=0,offset=0){
+		if(step)v=offset+Math.round2(v-offset,step);
+		if(step>=86400)v=(new Date(v*1000)).toJSON().substring(0,10);
+		else if(step>=60)v=(new Date(v*1000)).toJSON().substring(0,16);
+		else if(step>=1)v=(new Date(v*1000)).toJSON().substring(0,19);
+		else if(step>=.1)v=(new Date(v*1000)).toJSON().substring(0,21);
+		else if(step>=.01)v=(new Date(v*1000)).toJSON().substring(0,22);
+		else v=(new Date(v*1000)).toJSON().substring(0,23);
+		return v;
+	}
+	_adjustWidth(){}
+	step(v){
+		if(this._prop.step<0)this._prop.step*=-1;
+		if('max' in this._prop)this._content.setAttribute('max',this._display(this._prop.max,this._prop.step));
+		else this._content.removeAttribute('max');
+		if('min' in this._prop)this._content.setAttribute('min',this._display(this._prop.min,this._prop.step));
+		else this._content.removeAttribute('min');
+		this._content.setAttribute('step',this._prop.step>=86400?this._prop.step/86400:this._prop.step);
+		this.v(this._prop.v);
+	}
+	v(v){
+		if(this._prop.step && this._prop.step>=86400)this._content.type='date';
+		else this._content.type='datetime-local';
+		super.v(v);
+	}
+	in(v){
+		var c=this._content;
+		c._removeListeners();
+		if(v>0){
+			c.removeAttribute('disabled');
+			function send(){
+				c._item._updateProp('v',Date.parse(c.value.length>10?c.value+'+00:00':c.value)/1000);
+				c._item._sendMsg({v:c._item._prop.v});
+			};
+			c._listen('blur',send);
+			c._listen('keypress',e=>{if(e.key=='Enter')send()});
+		}else{
+			c.setAttribute('disabled','');
+		}
+	}
+}
+gui.Dt.prototype._classDefaults={c:'dt',v:localTimestamp()};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// additional number options
+// timespan
 addCSS(`
-[C='num'][unit]:not([unit='$']):not([unit^=':']):after {content: attr(unit);font-size:80%;padding-left:2px}
-[C='num'][unit='$']>.content:before {content: "$";font-size:70%;padding:.5em 0 0 0}
-`);
-gui.numdisplay=function(v,rnd,offset,unit){
-	if(rnd)v=offset+Math.round2(v-offset,rnd);
-	if(unit&&unit.startsWith(':'))v=new Date(v*1000).format(unit||"YMDhms");
-	else if(rnd<1)v=v.toFixed(rnd.toString().split('.')[1].length);
-	return v;
-}
-gui.Num.prototype.in=function(v){
-	var c=this._content;
-	c._removeListeners();
-	if(v>0){
-		c.setAttribute('contenteditable','plaintext-only');
-		c._listen('paste',(e)=>{
-			e.preventDefault();
-			var v=parseFloat(e.clipboardData.getData("text/plain"));
-			if(!isNaN(v))
-				document.execCommand("insertText", false, v);
-		});
-		function send(){
-			if(c.innerText!=c._item._allprop.v){
-				c._item._updateProp('v',parseFloat(c.innerText));
-				c._item._sendMsg({v:c._item._allprop.v});
-			}
-		}
-		c._listen('blur',send);
-		c._listen('keypress',(e)=>{
-			if(e.keyCode==13){
-				e.preventDefault();
-				send();
-			}else if(e.key && !'0123456789e.-'.includes(e.key)){
-				e.preventDefault();
-			}
-		});
-	}else{
-		c.removeAttribute('contenteditable');
+[c='time'] * {display:inline-block;vertical-align:middle}
+[c='time'] > .title:empty {width:0px;height:0px;overflow:hidden}
+[c='time'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
+[c='time'] > .title:not(:empty):after {content:":"}
+[c='time'] > .content {display:inline-block}
+[c='time'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:bottom}
+`)
+gui.Time=class extends gui.Num{
+	_initContent(){
+		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
+		this._frame=this._element;
+		this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
+		this._content=this._frame.appendChild(document.createElement('input'));			//content (includes value)
+		// this._content.type='datetime-local';
+		this._content.disabled=true;
+		this._parent._placeChildElement(this);
+		this._content.type='';
+		this._content.setAttribute('pattern','(-)?(\\d+h)?[0-5]?\\d(m|(m[0-5]?\\d(\\.\\d+)?(s)?))?');
+		this._content.oninput=function(){this.reportValidity()};
 	}
-};
-gui.Num.prototype.unit=function(v){this.v(this._allprop.v);};
-gui.Num.prototype.max=function(v){this.v(this._allprop.v);};
-gui.Num.prototype.min=function(v){this.v(this._allprop.v);};
-gui.Num.prototype.rnd=function(v){this.v(this._allprop.v);};
-gui.Num.prototype.v=function(v){
-	// if(!v)v=0;
-	if(this._allprop.min!==undefined)v=Math.max(v,this._allprop.min);
-	if(this._allprop.max!==undefined)v=Math.min(v,this._allprop.max);
-	this._content.innerHTML=gui.numdisplay(v,this._allprop.rnd,this._allprop.min||0,this._allprop.unit);
+	_display(v,step=0,offset=0){
+		var h=0,m=0,display='';
+		if(v>=3600){
+			h=Math.trunc(v/3600);
+			v=Math.abs(v-h*3600);
+			display+=h+'h';
+		}else if(step>=60){
+			display='0h';
+		}
+		if(v>=60){
+			m=Math.trunc(v/60);
+			v-=m*60;
+		}
+		if(display)display+=m.toString().padStart(2,'0')+'m';
+		else display+=m+'m';
+		if(step<60){
+			if(step&&step<1)v=v.toFixed(step.toString().split('.')[1].length);
+			else{ //cut down to milliseconds
+				let vstr=v.toString(),vstr3=v.toFixed(3);
+				v=vstr.length>vstr3.length?vstr3:vstr;
+			}
+			if(v.split('.')[0].length===1)v='0'+v;
+			display+=v.toString().padStart(2,'0')+'s';
+		}
+		return display;
+	}
+	_adjustWidth(size){
+		this._content.setAttribute('size',size+1);
+	}
+	step(v){
+		if(this._prop.step<0)this._prop.step*=-1;
+		var helptext='Must be the following format: #h##m##.###s.\n';
+		if('min' in this._prop)helptext+='Minimum value: '+this._display(this._prop.min)+'.\n';
+		if('max' in this._prop)helptext+='Maximum value: '+this._display(this._prop.max)+'.\n';
+		if('step' in this._prop)helptext+='Step size: '+this._display(this._prop.step)+'.\n';
+		this._content.setAttribute('title',helptext);
+		this.v(this._prop.v);
+	}
+	in(v){
+		var c=this._content;
+		if(v>0){
+			c.removeAttribute('disabled');
+			c.onchange=function(){
+				if(this.reportValidity()){
+					//parse hms into time
+					var val=c.value,h=0,m=0,s=0;
+					if(val.includes('h')){
+						[h,val]=val.split('h');
+						h=parseInt(h);
+					}
+					if(val.includes('m')){
+						[m,s]=val.split('m');
+						m=parseInt(m);
+						s=parseFloat(s)||0;
+					}
+					c._item._updateProp('v',h*3600+m*60+s);
+					c._item._sendMsg({v:c._item._prop.v});
+				}
+			};
+		}else{
+			c.setAttribute('disabled','');
+		}
+	}
 }
-gui.Num.prototype._typeDefaults={v:0};
+gui.Time.prototype._classDefaults={c:'time',v:0};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
 // holddown button
 addCSS(`
-[C='hold']:active {background-color:var(--colorTrue) !important;}
-[C='hold'] {text-align:center;display:inline-block;padding:.4em;color:var(--color1);border:1px solid rgba(0,0,0,0.2);background-color:var(--colorFalse);box-shadow: 0 0 5px -1px rgba(0,0,0,0.2);vertical-align:middle;}
-[C='hold']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
-[C='hold'][in]:empty {width:2em;height:2em;border-radius:2em;}
+[c='hold'] {text-align:center;display:inline-block;padding:.4em;color:var(--color1);border:1px solid rgba(0,0,0,0.2);background-color:var(--colorFalse);box-shadow: 0 0 5px -1px rgba(0,0,0,0.2);vertical-align:middle;}
+[c='hold']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
+[c='hold'][in]:empty {width:2em;height:2em;border-radius:2em;}
 `)
 gui.Hold=class extends gui.Btn{
 	_btnDown(){this._boundTo._element.onmousedown();}
@@ -1829,57 +1836,59 @@ gui.Hold=class extends gui.Btn{
 		var thisItem=this;
 		this._boundTo=item;
 		if(this._unbind)this._unbind();
-		if(this._allprop)
-			item._setAttr('in',this._allprop.in);
-		item._element.onmousedown=function(){						//onmousedown behavior
+		if(this._prop)
+			item._setAttr('in',this._prop.in);
+		item._element.onmousedown=function(e){						//onmousedown behavior
 			thisItem._updateProp('v',true);
 			thisItem._sendMsg({v:true});
+			// if(e)e.preventDefault();
 		}
 		item._element.onmouseup=function(){							//onmouseup behavior
-			thisItem._updateProp('v',false);
-			thisItem._sendMsg({v:false});
+			if(this._item._prop.v){
+				thisItem._updateProp('v',false);
+				thisItem._sendMsg({v:false});
+			}
 		}
+		item._element.onmouseleave=this._element.onmouseup;
 		this._unbind=function(){item._element.onmousedown=item._element.onmouseup=null;}
 	}
 	v(v){}
 }
-gui.Hold.prototype.C='hold';
+gui.Hold.prototype._classDefaults={c:'hold',v:false};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
 // selectable options (checkboxes/radiobuttons)
 addCSS(`
-[C='select'] {display:block;text-align:center}
-[C='select'] > .title {display:inline-block}
-[C='select']:not([v="true"]):before {content:"\\2610" " ";display:inline}
-[C='select'][v="true"]:before {content:"\\2611" " ";display:inline}
-[C='select'][group]:not([v="true"]):before {content:"\\029be" " ";display:inline}
-[C='select'][group][v="true"]:before {content:"\\029bf" " ";display:inline}
+[c='opt'] {display:block;text-align:center}
+[c='opt'] > .title {display:inline-block}
+[c='opt']:not([v="true"]):before {content:"\\2610" " ";display:inline}
+[c='opt'][v="true"]:before {content:"\\2611" " ";display:inline}
+[c='opt'][grp]:not([v="true"]):before {content:"\\029be" " ";display:inline}
+[c='opt'][grp][v="true"]:before {content:"\\029bf" " ";display:inline}
 `)
-gui.Select=class extends gui.Btn{
+gui.selectGroups={};
+gui.Opt=class extends gui.Btn{
 	_bind(item){
 		var thisItem=this;
 		this._boundTo=item;
 		if(this._unbind)this._unbind();
-		if(this._allprop)
-			item._setAttr('in',this._allprop.in);
-		// this._boundTo._setAttr('tabindex','0');
+		if(this._prop)
+			item._setAttr('in',this._prop.in);
 		item._element.onclick=function(){							//select/deselect behavior
-			if(thisItem._allprop.v){
+			if(thisItem._prop.v){
 				thisItem._sendMsg({v:false});
 				thisItem._updateProp('v',false);
-				// item._setAttr("v","false");
 			}else{
 				thisItem._sendMsg({v:true});
 				thisItem._updateProp('v',true);
-				// item._setAttr("v","true");
 			}
 		}
 		this._unbind=function(){item._element.onclick=null;}
 	}
-	title(v){
-		super.title(v);
+	cap(v){
+		super.cap(v);
 		if((v===null||v===undefined)?this._prop.id:v)this._element.style.textAlign='left';
 		else this._element.style.textAlign='center';
 	}
@@ -1887,244 +1896,235 @@ gui.Select=class extends gui.Btn{
 		if(this._boundTo && this._boundTo!==this){
 			this._boundTo._setAttr('v',v);
 		}
-		var group=this._allprop.group;
-		if(group){
-			var currentSelected=gui.selectGroups[group];
+		var grp=this._prop.grp;
+		if(grp){
+			var currentSelected=gui.selectGroups[grp];
 			if(v){
 				if(currentSelected && currentSelected!==this){
 					currentSelected._updateProp('v',false);
-					// if(currentSelected._boundTo!==currentSelected)
-						// currentSelected._boundTo._setAttr('v',null);
 				}
-				gui.selectGroups[group]=this;
+				gui.selectGroups[grp]=this;
 			}else if(currentSelected===this){
-				gui.selectGroups[group]=undefined;
+				gui.selectGroups[grp]=undefined;
 			}
 		}
 	}
-	group(v){
-		//this._setAttr('group',v);
-	}
+	grp(v){}
 }
-gui.Select.prototype.C='select';
-gui.selectGroups={};
+gui.Opt.prototype._classDefaults={c:'opt',v:false};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// html
+// doc (markup document: html, markdown)
 addCSS(`
-[C='html'] > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);width:25%;}
-[C='html'] > .content {white-space:normal;}
+[c='doc'] > .content {white-space:normal;}
 `);
-gui.Html=class extends gui.Txt{
-	v(v){this.in(this._allprop.in);}
+gui.Doc=class extends gui.Txt{
+	v(v){this.in(this._prop.in);}
 	in(v){
 		if(v>0){
-			this._content.innerText=this._allprop.v;
-			gui.Txt.prototype.in.call(this,v);
+			this._content.innerText=this._prop.v;
+			gui.Txt.prototype.in.call(this,v); //TODO: change this to prior multiline text input
 		}else if(this._content.getAttribute('contenteditable')){
 			this._content.removeAttribute('contenteditable');
-			this._content.innerHTML=this._allprop.v;
-		}
-	}
-}
-gui.Html.prototype.C='html';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// url
-// addCSS(`
-// [C='url'] {cursor:pointer;color:var(--colorLink)}
-// [C='url'] > .title:not(empty) {border-bottom:solid 1px var(--colorLink);}
-// [C='url'] > .content {display:none;}
-// `);
-// gui.Url=class extends gui.Txt{
-	// v(v){
-		// this._element.onclick=()=>open(v);
-		// this.title();
-	// }
-	// title(v){this._title.innerText=(v===null||v===undefined)?(this._prop.id?this._prop.id:this._allprop.v):v;}
-// }
-// gui.Url.prototype.C='url';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// file
-addCSS(`
-[C='file'] > .content > {font-size:80%}
-[C='file']:not([v]) {display:none} 
-[C='file'] > .content {margin-left:1em;white-space:normal}
-`);
-gui.File=class extends gui.Txt{
-	v(v){setTimeout(()=>this.title(),10)}
-	title(v){
-		if(this._allprop.v){
-			if(!this._link){
-				this._title.innerHTML='';
-				this._link=this._title.appendChild(document.createElement("a"));
+			if(this._prop.fmt=='mkdn'){
+				this._content.innerHTML=gui.markdown(this._prop.v);
+			}else{
+				this._content.innerHTML=this._prop.v;
 			}
-			var filename=this._allprop.title||this._prop.id||('download.'+(this._allprop.filetype||'txt'));
-			var file=new Blob([this._allprop.v]);
-			this._link.href=URL.createObjectURL(file);
-			this._link.download=filename;
-			var size=this._allprop.v.length>1048576?
-				(this._allprop.v.length/1048576).toFixed(1)+'mb':
-				(this._allprop.v.length>1024?
-					(this._allprop.v.length/1024).toFixed(1)+'kb':
-					this._allprop.v.length+'b');
-			this._link.innerText=`${filename} (${size}) ⤓`;
 		}
 	}
-	filetype(v){
-		if(v.toLowerCase()=='csv'){
-			load([
-					'https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.min.js',
-					'https://cdnjs.cloudflare.com/ajax/libs/dygraph/2.1.0/dygraph.css'
-				],()=>{
-					if(!this._previewBtn){
-						this._previewBtn=this._content.appendChild(document.createElement("a"));
-						this._previewBtn.innerText='Preview';
-						this._preview=this._content.appendChild(document.createElement("div"));
-					}
-					var thisItem=this;
-					this._previewBtn.onclick=function(){
-						if(thisItem._graph){
-							delete thisItem._graph;
-							thisItem._content.removeChild(thisItem._preview);
-							thisItem._preview=thisItem._content.appendChild(document.createElement("div"));
-						}else{
-							thisItem._preview.style.backgroundColor='white';
-							thisItem._preview.style.color='black';
-							thisItem._preview.style.margin='1em';
-							thisItem._preview.style.overflow='visible';
-							thisItem._graph=new Dygraph(thisItem._preview,
-								thisItem._allprop.v,
-								{
-									legend: 'always',
-									animatedZooms: true,
-									drawPoints: true,
-									title: thisItem._allprop.title||thisItem._prop.id||'',
-									connectSeparatedPoints: true
-								});
-						}
-					}
-				});
-		}else if(this._previewBtn){
-			this._content.removeChild(this._previewBtn);
-			delete this._previewBtn;
-			this._content.removeChild(this._preview);
-			delete this._preview;
+	fmt(v){}
+}
+gui.Doc.prototype._classDefaults={c:'doc',v:''};
+//////////////////////////////////////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////////////////////////////////////////
+// win
+addCSS(`
+.glass {z-index:1;position:fixed;top:0px;left:0px;width:100vw;height:100vh;background-color:rgba(255,255,255,.5);pointer-events:all}
+[c='win'] {z-index:1;position:absolute;top:50%;left:50%;transform:translate(-50%,-100%) !important;min-width:200;max-width:90vw;max-height:90vh;border:solid 1px gray;border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5)}
+[c='win']>.title {padding:5px; background:linear-gradient(#fff,#fff,#fff,#eee,#ddd)}
+[c='win']>.frame {margin:1em}
+`);
+gui.disableAllUnderGlass=function(){
+	//find top glass and disable everything under it
+	var f=gui.rootContainer._frame,
+		i=f.childElementCount,
+		glassFound=false;
+	while(i--){
+		if(glassFound){
+			gui.disableElement(f.children[i]);
+		}else{
+			if(f.children[i].className==='glass')
+				glassFound=true;
+			else
+				gui.enableElement(f.children[i]);
 		}
 	}
 }
-gui.File.prototype.C='file';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// mkdn
-addCSS(`
-[C='mkdn'] > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);width:25%;}
-`);
-gui.Mkdn=class extends gui.Html{
-	v(v){this.in(this._allprop.in);}
-	in(v){
-		if(v>0){
-			this._content.innerText=this._allprop.v;
-			gui.Txt.prototype.in.call(this,v);
-		}else if(this._content.getAttribute('contenteditable')){
-			this._content.removeAttribute('contenteditable');
-			this._content.innerHTML=gui.markdown(this._allprop.v);
-		}
-	}
-}
-gui.Mkdn.prototype.C='mkdn';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// popup
-addCSS(`
-[C='popup'] {position:fixed;top:0px;left:0px;width:100vw;height:100vh;z-index:99999;background-color:rgba(255,255,255,.5);pointer-events:all}
-[C='popup'] > div {top:50%;left:50%;transform:translate(-50%,-50%);width:50%;max-width:90vw;max-height:90vh;overflow:auto;border:solid 1px gray;border-radius:4px;padding:1em;background-color:var(--color0)}
-[C='popup'] > * > .title:empty {width:0px;height:0px;overflow:hidden}
-[C='popup'] > * > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);width:25%;}
-`);
-gui.Popup=class extends gui.Bin{
+gui.Win=class extends gui.Bin{
 	_initContent(){
-		this._element=document.createElement('div'); //screen
-		this._frame=this._element.appendChild(document.createElement('div')); //popup window
-		this._title=this._frame.appendChild(document.createElement('div'));
+		this._element=document.createElement('div');
+		this._title=this._element.appendChild(document.createElement('div'));
+		this._frame=this._element.appendChild(document.createElement('div'));
 		this._content=this._frame.appendChild(document.createElement('div'));
-		// this._content.style.overflow='auto';
-		this._parent._placeChildElement(this);
+		this._parent._frame.appendChild(this._element);
+		this._outerElement=this._element;
+		document.activeElement.blur();
+	}
+	_beforeRemove(){
+		if(this._glass)this._glass.remove();
+		gui.disableAllUnderGlass();
+	}
+	mod(v){
+		if(v && !this._glass){
+			this._glass=this._parent._frame.insertBefore(document.createElement('div'),this._outerElement);
+			this._glass.className='glass';
+		}else if(!v && this._glass){
+			this._glass.remove();
+		}
+		gui.disableAllUnderGlass();
+	}
+	i(v){
+		var parent=this._parent;
+		if(parent && parent._children[v]!==this){
+			var myindx=parent._children.indexOf(this);
+			if(myindx>-1)
+				parent._children.splice(myindx,1);
+			if(v<parent._children.length){
+				parent._children.splice(v,0,this);
+			}else{
+				parent._children.push(this);
+			}
+			var insertBefore;
+			for(var e of parent._frame.children){
+				if(e!==this._outerElement && e.getAttribute('c')==='win' && e._item._getIndex()>v){
+					insertBefore=e;
+				}
+			}
+			if(insertBefore){
+				parent._frame.insertBefore(this._outerElement,insertBefore._item._glass||insertBefore);
+			}else{
+				parent._frame.appendChild(this._outerElement);
+			}
+			if(this._glass)
+				parent._frame.insertBefore(this._glass,this._outerElement);
+			gui.disableAllUnderGlass();
+		}
+	}
+	z(v){
+		this._outerElement.style.zIndex=v;
+		if(this._glass)this._glass.style.zIndex=v;
 	}
 }
-gui.Popup.prototype.C='popup';
+gui.Win.prototype._classDefaults={c:'win',v:[]};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
 // one (tabs)
-gui.One=class extends gui.Bin{
-	//todo: every child must have "fold" option
-}
-gui.One.prototype.C='one';
-//////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-// toast
 addCSS(`
-[C='toast'] {max-height:95%;overflow-y:auto;padding-right:1em;position:fixed;bottom:3px;right:3px;z-index:100;pointer-events:all;background-color:var(--color1);color:var(--color0);}
-[C='toast'] [id='closeBtn'] {right:0px;top:0px;position:absolute;cursor:pointer}
-[C='toast'] [id='closeBtn']::before {content:'x';color:#fff;font-weight:300;font-family:Arial,sans-serif;padding:4px}
+[c="one"] > .frame > .content > * {border:none !important}
+[c="one"] > .frame > .content > *:not([fold="1"]) {display:none}
+[c="one"] > .frame > .content > * > .title {display:none}
+[c="one"] > .frame {border: solid 1px gray;background-color:#fff}
+.tabTitles {margin-top:5px;z-index:1;margin:4px}
+.tabTitles > span {border:solid 1px gray;border-radius:3px;font-size:70%;font-family:Arial;margin:4px;padding-left:10px;padding-right:10px;cursor:pointer;background-color:var(--colorHead)}
+.visibleTabTitle {border-bottom:none !important;font-weight:bold;padding-bottom:5.5px;background-color:#fff !important;border-radius: 3px 3px 0px 0px !important;}
 `);
-gui.Toast=class extends gui.Bin{
-	_initContent(){
-		super._initContent();
-		this._closeBtn=this._element.appendChild(document.createElement('div'));
-		this._closeBtn.setAttribute('id','closeBtn');
-		var thisItem=this;
-		this._closeBtn.onclick=()=>thisItem._parent._removeChild(thisItem);
+gui.One=class extends gui.Bin{
+	_switchTabs(child){
+		if(this._visibleTab){
+			this._visibleTab._tabTitle.className='';
+			this._visibleTab._updateProp('fold',null);
+		}
+		this._visibleTab=child;
+		child._tabTitle.className='visibleTabTitle';
+	}
+	_updateTabTitles(){
+		var child,tabTitle;
+		if(!this._tabTitles){
+			this._tabTitles=this._element.insertBefore(document.createElement('div'),this._frame);
+			this._tabTitles.className='tabTitles';
+		}else{
+			this._tabTitles.innerHTML='';
+		}
+		for(child of this._children){
+			tabTitle=this._tabTitles.appendChild(document.createElement('span'));
+			tabTitle.innerText=child._titleText.innerText;
+			tabTitle._item=child;
+			child._tabTitle=tabTitle;
+			if(child===this._visibleTab)
+				tabTitle.className='visibleTabTitle';
+			tabTitle.onclick=function(){
+				this._item._updateProp('fold',1);
+			};
+		}
+	}
+	//TODO: add remove method that gets rid of tab title
+	_newChild(prop){
+		var type=gui.getType(prop);
+		// only add child if it's a bin
+		if(!type || type==gui.Bin){
+			// check if this is a visible tab
+			var visibleTab = prop.fold===1 || !this._visibleTab;
+			delete prop.fold;
+			// create child
+			var child=new gui.Bin(prop,this);
+			if(!this._children.includes(child))
+				this._children.push(child);
+			// remap child's fold function
+			child.fold=function(v){if(v===1)this._parent._switchTabs(this)};
+			//update tab titles
+			this._updateTabTitles();
+			// if this is a visible tab, switch to it
+			if(visibleTab){
+				this._switchTabs(child);
+				child._setAttr('fold',1);
+			}
+		}
 	}
 }
-gui.Toast.prototype.C='toast';
+gui.One.prototype._classDefaults={c:'one',v:[]};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// table
+// grid
 addCSS(`
-[C="table"] > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);width:25%;overflow:visible;flex:none}
-[C="table"] {display:flex;flex-direction:column}
-[C="table"] > div {overflow:auto;flex:1 1 auto}
-[C="tableRow"] {margin:0}
-table {border-spacing:0;border-collapse:collapse;}
-[head="1"] > div > table > tr:first-child > * {font-weight:bold;background:var(--colorHead);z-index:2;position:relative}
+[c="grid"] > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);flex:none}
+[c="grid"] {display:flex;flex-direction:column}
+[c="grid"] > div {overflow:auto;flex:1 1 auto}
+[c="grid"] > .frame {max-height: 400px}
+tr {margin:0}
+table {border-spacing:0;border-collapse:collapse;overflow:scroll !important}
+th {background:var(--colorHead);position:sticky;top:0;font:inherit;z-index:2}
+td {background-clip:padding-box}
+td,th {padding-right:1em; vertical-align:text-bottom}
 td.title:empty {display:table-cell}
-table {font-size:96%}
-tr {font-size:96%}
-td {font-size:96%;position:relative}
 `);
-gui.Table=class extends gui.Bin{
+gui.Grid=class extends gui.Bin{
 	_initContent(){
 		this._element=document.createElement('div');
 		this._title=this._element.appendChild(document.createElement('div'));
 		this._frame=this._element.appendChild(document.createElement('div'));
 		this._frame.style.overflow='auto';
 		this._content=this._frame.appendChild(document.createElement('table'));
+		this._headerRow=this._content.appendChild(document.createElement('tr'));
+		this._headerRow2=this._content.appendChild(document.createElement('tr'));
 		this._parent._placeChildElement(this);
 	}
 	_newChild(prop){
 		var type=gui.getType(prop);
+		// only add child if it's a bin, but add it as new GridRow()
 		if(!type || type==gui.Bin){
-			var child=new gui.TableRow(prop,this);
-			this._children.push(child);
-			// if(typeof(prop.id)!=='number')this._childmap[prop.id]=child;
+			var child=new gui.GridRow(prop,this);
+			if(!this._children.includes(child))
+				this._children.push(child);
 		}
 	}
 	_floatRow(e){
@@ -2134,286 +2134,279 @@ gui.Table=class extends gui.Bin{
 			p[i].style.transform = translate;
 		}
 	}
-	head(v){
-		if(v)this._frame.addEventListener('scroll',this._floatRow);
-		else{
-			this._content.firstChild.style.transform=null;
-			this._frame.removeEventListener('scroll',this._floatRow);
+	// head(v){
+	// 	this._headerRow.innerHTML='';
+	// 	if(v && v.length){
+	// 		var th,colspan;
+	// 		this._headerRow.appendChild(document.createElement('th'));
+	// 		this._headerRow.appendChild(document.createElement('th'));
+	// 		for(var i=0;i<v.length;i++){
+	// 			th=this._headerRow.appendChild(document.createElement('th'));
+	// 			th.innerHTML=v[i];
+	// 			colspan=1;
+	// 			while(v[i]==v[i+1]){
+	// 				colspan++;
+	// 				i++;
+	// 			}
+	// 			if(colspan>1)th.colSpan=colspan;
+	// 		}
+	// 	}
+	// }
+	rows(v){
+		var row=(new Array(this._prop.cols||1)).fill(0);
+		while(v>this._children.length){
+			this._newChild(row.map(x=>[]));
 		}
 	}
-}
-gui.Table.prototype.C='table';
-gui.TableRow=class extends gui.Bin{
+	cols(v){
+		for(var row of this._children){
+			while(v>row._children.length){
+				row._newChild([]);
+			}
+		}
+	}
+};
+gui.Grid.prototype._classDefaults={c:'grid',v:[]};
+gui.GridRow=class extends gui.Bin{
 	_initContent(){
 		this._element=document.createElement('tr');				//e.v is a sub-element where content is displayed
 		this._frame=this._element;
 		this._title=this._element.appendChild(document.createElement('td'));
+		this._title2=this._element.appendChild(document.createElement('td'));
 		this._content=this._element;
 		this._parent._placeChildElement(this);
 	}
 	_placeChildElement(child){
 		var td=this._content.appendChild(document.createElement('td'));
 		td.appendChild(child._element);
-		child._outterElement=td;
+		child._outerElement=td;
 	}
-}
-gui.TableRow.prototype.C='tableRow';
+};
+gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
 //////////////////////////////////////////////////////////////////////////////
 
 
+//TODO: change this to only be allowed in n, plot, 2d/3d and add n component
 //////////////////////////////////////////////////////////////////////////////
 // ln (link between items)
-addCSS(` 
-svg {width:100%;height:100%;left:0px;top:0px;position:absolute;z-index:0}
-[C='l']>.title {stroke:none;fill:currentColor;font-size:90%;font-family:sans-serif;}
-`);
-gui.getMarker=function(markerType,color){
-	var id;
-	if(markerType==='arrow' || markerType==='dot'){
-		id='marker.'+markerType+'.'+color;
-		if(!document.getElementById(id)){
-			var d;
-			if(!gui.svgdefs){
-				gui.svgdefs=document.body.appendChild(createSVG('svg')).appendChild(createSVG('defs'));
-				gui.svgdefs.parentElement.style.height='0px';
-			}
-			var m=gui.svgdefs.appendChild(createSVG('marker'));
-			m.id=id;
-			m.setAttribute('orient','auto-start-reverse');
-			m.setAttribute('markerUnits','strokeWidth');
-			if(markerType==='arrow'){
-				m.setAttribute('viewBox','0 0 10 10');
-				m.setAttribute('refX','9');
-				m.setAttribute('refY','5');
-				m.setAttribute('markerWidth','10');
-				m.setAttribute('markerHeight','8');
-				d=m.appendChild(createSVG('path'));
-				d.setAttribute('d',"M 0 0 L 10 5 L 0 10 z");
-			}else{
-				m.setAttribute('refX','2');
-				m.setAttribute('refY','2');
-				m.setAttribute('markerWidth','5');
-				m.setAttribute('markerHeight','5');
-				d=m.appendChild(createSVG('circle'));
-				d.setAttribute('cx','2');
-				d.setAttribute('cy','2');
-				d.setAttribute('r','1.1');
-			}
-			d.setAttribute('fill',gui.color(color)); //TODO: fix this color
-		}
-		id='url(#'+id+')';
-	}
-	return id;
-}
-gui.L=class extends gui.Item{
-	_initContent(){
-		if(!this._parent._svg)
-			this._parent._svg=this._svg=this._parent._content.insertBefore(createSVG('svg'),this._parent._content.childNodes[0]);
-		else
-			this._svg=this._parent._svg;
-		// this._svg=this._content.appendChild(createSVG('svg'));
-		this._path=this._svg.appendChild(createSVG('g'));
-		// this._path.setAttribute('C','l');
-		this._path.setAttribute('stroke-width','2');
-		this._path.setAttribute('fill','none');
-		this._paths=[this._path.appendChild(createSVG('path'))];
-		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-		this._parent._placeChildElement(this); //todo: if this is commented out, need a diff way to go through children
-		this._content=this._frame=this._element=this._path;
-		this._title=this._path.appendChild(createSVG('text'));
-		this._title.style.display='none';
-		// this._outterElement=this._parent._svg;
-		this._redraw();
-		this._path.onmouseenter=e=>{
-			this._title.style.display='block';
-			var r=this._parent._content.getBoundingClientRect();
-			this._title.setAttribute('x',2+e.clientX-r.left);
-			this._title.setAttribute('y',2+e.clientY-r.top);
-			// this._title.style.top=2+e.clientY-r.top;
-		}
-		this._path.onmouseleave=e=>{
-			this._title.style.display='none';
-		}
-		this._uids=[];
-	}
-	_beforeRemove(){
-		this._parent._svg.removeChild(this._path);
-	}
-	_drawPaths(){
-		var startMarker,endMarker;
-		if(this._allprop.dir==1){
-			startMarker=gui.getMarker('dot',this._allprop.lc);
-			endMarker=gui.getMarker('arrow',this._allprop.lc);
-		}else if(this._allprop.dir==2){
-			startMarker=gui.getMarker('arrow',this._allprop.lc);
-			endMarker=gui.getMarker('arrow',this._allprop.lc);
-		}else if(this._allprop.dir==-1){
-			startMarker=gui.getMarker('arrow',this._allprop.lc);
-			endMarker=gui.getMarker('dot',this._allprop.lc);
-		}
-		var i=0,r1,r2,d,svgr=this._svg.getBoundingClientRect();
-		for(var e of this._elements){
-			if(e._item){
-				if(r1){
-					if(!this._paths[i])
-						this._paths[i]=this._path.appendChild(createSVG('path'));
-					r2=e.getBoundingClientRect();
-					if(r1.right<r2.left) //r1 is left of r2
-						if(r1.bottom<r2.top) //r1 is above of r2
-							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
-						else if(r2.bottom<r1.top) //r2 is above of r1
-							d=[r1.right-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
-						else
-							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
-					else if(r2.right<r1.left) //r2 is left of r1
-						if(r1.bottom<r2.top) //r1 is above of r2
-							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
-						else if(r2.bottom<r1.top) //r2 is above of r1
-							d=[r1.left-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
-						else
-							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-					else if(r1.bottom<r2.top) //r1 is above of r2
-						d=[r1.left+r1.width/2-svgr.left,r1.bottom-svgr.top,r2.left+r2.width/2-svgr.left,r2.top-svgr.top];
-					else if(r2.bottom<r1.top) //r2 is above of r1
-						d=[r1.left+r1.width/2-svgr.left,r1.top-svgr.top,r2.left+r2.width/2-svgr.left,r2.bottom-svgr.top];
-					else if(r2.right<r1.right) //r2 is left of r1, but overlapping
-						if(r2.top<r1.top) //r2 is above of r1
-							d=[r1.right-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
-						else if(r2.bottom>r1.bottom) //r1 is above of r2
-							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
-						else
-							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-					else if(r2.left>r1.left) //r2 is right of r1, but overlapping
-						if(r2.top<r1.top) //r1 is above of r2
-							d=[r1.left-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
-						else if(r2.bottom>r1.bottom) //r2 is above of r1
-							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
-						else
-							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
-					else
-						d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-					this._paths[i].setAttribute('d','M'+d);
-					this._paths[i].setAttribute('marker-start',startMarker);
-					this._paths[i].setAttribute('marker-end',endMarker);
-					r1=r2;
-					i++;
-				}else{
-					r1=e.getBoundingClientRect();
-				}
-			}
-		}
-		this._paths.length=i;
-	}
-	_drawPath(){
-		//collect elements
-		if(this._elements)
-			for(var element of this._elements)
-				delete element._item._moveTriggers.ln;
-		this._elements=[];
-		if(this._uids.length){
-			for(var uid of this._uids){
-				var item=this._parent._searchId(uid.constructor===Array?uid:[uid]);
-				if(item)this._elements.push(item._element);
-			}
-		}else if(this._allprop.tag){
-			for(var element of this._parent._content.children)
-				if(element._item && element._item!==this)
-					for(var tag of this._allprop.tag)
-						if(element._item._allprop.tag.includes(tag))
-							this._elements.push(element);
-		}else{
-			for(var element of this._parent._content.children)
-				if(element._item && element._item!==this)
-					this._elements.push(element);
-		}
-		for(var element of this._elements)
-			element._item._moveTriggers.ln=()=>{this._redraw()};
-		//connect elements
-		if(this._allprop.dir){
-			this._drawPaths();
-		}else{
-			if(this._paths.length){
-				for(var i=1;i<this._paths.length;i++)
-					this._paths[i].remove();
-				this._paths.length=1;
-			}else{
-				this._paths[0]=this._path.appendChild(createSVG('path'));
-			}
-			var r,svgr=this._svg.getBoundingClientRect(),d='M';
-			for(var e of this._elements){
-				r=e.getBoundingClientRect();
-				d+=(r.left+r.width/2-svgr.left)+','+(r.top+r.height/2-svgr.top)+' ';
-				// if(getComputedStyle(e).position!=='absolute'){
-					// var x=e.offsetLeft+e.offsetWidth/2;
-					// if(d)d+=x+','+e.offsetTop+' ';
-					// if(e.nextElementSibling)d+='M'+x+','+(e.offsetTop+e.offsetHeight)+' ';
-				// }else{
-					// if(!d)d='M';
-					// d+=e.offsetLeft+','+e.offsetTop+' ';
-				// }
-			}
-			this._paths[0].setAttribute('d',d);
-			this._paths[0].removeAttribute('marker-start');
-			this._paths[0].removeAttribute('marker-end');
-		}
-	}
-	_redraw(){
-		if(!this._drawing)
-			this._drawing=setTimeout(()=>{this._drawPath();this._drawing=null;},15);
-	}
-	_updateInternalWidth(v){this._redraw()};
-	_updateInternalHeight(v){this._redraw()};
-	v(v){
-		if(v.constructor===Array){
-			if(v[0]===null)this._uids=[];
-			for(var uid of v){
-				if(uid!==null)
-					this._uids.push(uid);
-			}
-		}else{
-			this._uids=[];
-		}
-		this._redraw();
-	}
-	tag(v){
-		this._element.classList.remove(...this._element.classList);
-		this._element.classList.add('content','frame');
-		if(v && v.length){
-			for(var tag of v){
-				if(tag!==null)
-					this._element.classList.add(tag.constructor===String?tag:('tag'+tag));
-			}
-		}
-		this._redraw();
-	}
-	dir(v){this._redraw();}
-}
-gui.L.prototype.C='l';
-gui.L.prototype.shp=null;
-gui.L.prototype.opq=null;
-gui.L.prototype.w=null;
-gui.L.prototype.h=null;
-gui.L.prototype.iw=null;
-gui.L.prototype.ih=null;
-gui.L.prototype.x=null;
-gui.L.prototype.y=null;
-gui.L.prototype.rot=null;
+// addCSS(` 
+// svg {width:100%;height:100%;left:0px;top:0px;position:absolute;z-index:0}
+// [c='l']>.title {stroke:none;fill:currentColor;font-size:90%;font-family:sans-serif;}
+// `);
+// gui.arrowMarkers=0;
+// gui.arrowMarker=function(){
+// 	var m=createSVG('marker');
+// 	m.id="arr"+(gui.arrowMarkers++);
+// 	m.setAttribute('orient','auto-start-reverse');
+// 	m.setAttribute('markerUnits','strokeWidth');
+// 	m.setAttribute('viewBox','0 0 10 10');
+// 	m.setAttribute('refX','5');
+// 	m.setAttribute('refY','5');
+// 	m.setAttribute('markerWidth','5');
+// 	m.setAttribute('markerHeight','6');
+// 	m.style.fill='currentColor';
+// 	m.style.stroke='none';
+// 	var d=m.appendChild(createSVG('path'));
+// 	d.setAttribute('d',"M 0 0 L 10 5 L 0 10 z");
+// 	return m;
+// }
+// gui.L=class extends gui.Item{
+// 	_initContent(){
+// 		if(!this._parent._svg)
+// 			this._parent._svg=this._svg=this._parent._content.insertBefore(createSVG('svg'),this._parent._content.childNodes[0]);
+// 		else
+// 			this._svg=this._parent._svg;
+// 		this._path=this._svg.appendChild(createSVG('g'));
+// 		this._path.setAttribute('stroke-width','2');
+// 		this._path.setAttribute('fill','none');
+// 		this._path.style.stroke='currentColor';
+// 		this._paths=[this._path.appendChild(createSVG('path'))];
+// 		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
+// 		this._parent._placeChildElement(this);
+// 		this._content=this._frame=this._element=this._path;
+// 		this._title=this._path.appendChild(createSVG('text'));
+// 		this._title.style.display='none';
+// 		this._redraw();
+// 		this._path.onmouseenter=e=>{
+// 			this._title.style.display='block';
+// 			var r=this._parent._content.getBoundingClientRect();
+// 			this._title.setAttribute('x',2+e.clientX-r.left);
+// 			this._title.setAttribute('y',2+e.clientY-r.top);
+// 		}
+// 		this._path.onmouseleave=e=>{
+// 			this._title.style.display='none';
+// 		}
+// 		this._uids=[];
+// 	}
+// 	_beforeRemove(){
+// 		this._parent._svg.removeChild(this._path);
+// 	}
+// 	_drawPaths(){	//todo: optimally this would go center to center, but stopping at border (and be same for dir:0)
+// 		var startMarker,endMarker;
+// 		if(!this._arrow)this._arrow=this._path.appendChild(gui.arrowMarker());
+// 		if(this._prop.dir==1){
+// 			endMarker="url(#"+this._arrow.id+")";
+// 		}else if(this._prop.dir==2){
+// 			startMarker="url(#"+this._arrow.id+")";
+// 			endMarker="url(#"+this._arrow.id+")";
+// 		}else if(this._prop.dir==-1){
+// 			startMarker="url(#"+this._arrow.id+")";
+// 		}
+// 		var i=0,r1,r2,d,svgr=this._svg.getBoundingClientRect();
+// 		for(var e of this._elements){
+// 			if(e._item){
+// 				if(r1){
+// 					if(!this._paths[i])
+// 						this._paths[i]=this._path.appendChild(createSVG('path'));
+// 					r2=e.getBoundingClientRect();
+// 					if(r1.right<r2.left) //r1 is left of r2
+// 						if(r1.bottom<r2.top) //r1 is above of r2
+// 							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
+// 						else if(r2.bottom<r1.top) //r2 is above of r1
+// 							d=[r1.right-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
+// 						else
+// 							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
+// 					else if(r2.right<r1.left) //r2 is left of r1
+// 						if(r1.bottom<r2.top) //r1 is above of r2
+// 							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
+// 						else if(r2.bottom<r1.top) //r2 is above of r1
+// 							d=[r1.left-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
+// 						else
+// 							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
+// 					else if(r1.bottom<r2.top) //r1 is above of r2
+// 						d=[r1.left+r1.width/2-svgr.left,r1.bottom-svgr.top,r2.left+r2.width/2-svgr.left,r2.top-svgr.top];
+// 					else if(r2.bottom<r1.top) //r2 is above of r1
+// 						d=[r1.left+r1.width/2-svgr.left,r1.top-svgr.top,r2.left+r2.width/2-svgr.left,r2.bottom-svgr.top];
+// 					else if(r2.right<r1.right) //r2 is left of r1, but overlapping
+// 						if(r2.top<r1.top) //r2 is above of r1
+// 							d=[r1.right-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
+// 						else if(r2.bottom>r1.bottom) //r1 is above of r2
+// 							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
+// 						else
+// 							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
+// 					else if(r2.left>r1.left) //r2 is right of r1, but overlapping
+// 						if(r2.top<r1.top) //r1 is above of r2
+// 							d=[r1.left-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
+// 						else if(r2.bottom>r1.bottom) //r2 is above of r1
+// 							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
+// 						else
+// 							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
+// 					else
+// 						d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
+// 					this._paths[i].setAttribute('d','M'+d);
+// 					this._paths[i].setAttribute('marker-start',startMarker);
+// 					this._paths[i].setAttribute('marker-end',endMarker);
+// 					r1=r2;
+// 					i++;
+// 				}else{
+// 					r1=e.getBoundingClientRect();
+// 				}
+// 			}
+// 		}
+// 		this._paths.length=i;
+// 	}
+// 	_drawPath(){
+// 		//collect elements
+// 		if(this._elements)
+// 			for(var element of this._elements)
+// 				delete element._item._moveTriggers.ln;
+// 		this._elements=[];
+// 		if(this._uids.length){
+// 			for(var uid of this._uids){
+// 				var item=this._parent._searchId(uid);
+// 				if(item)this._elements.push(item._element);
+// 			}
+// 		}else if(this._prop.tag){
+// 			for(var element of this._parent._content.children)
+// 				if(element._item && element._item!==this)
+// 					for(var tag of this._prop.tag)
+// 						if(element._item._prop.tag&&element._item._prop.tag.includes(tag))
+// 							this._elements.push(element);
+// 		}else{
+// 			for(var element of this._parent._content.children)
+// 				if(element._item && element._item!==this)
+// 					this._elements.push(element);
+// 		}
+// 		for(var element of this._elements)
+// 			element._item._moveTriggers.ln=()=>{this._redraw()};
+// 		//connect elements
+// 		if(this._prop.dir){
+// 			this._drawPaths();
+// 		}else{
+// 			if(this._paths.length){
+// 				for(var i=1;i<this._paths.length;i++)
+// 					this._paths[i].remove();
+// 				this._paths.length=1;
+// 			}else{
+// 				this._paths[0]=this._path.appendChild(createSVG('path'));
+// 			}
+// 			var r,svgr=this._svg.getBoundingClientRect(),d='M';
+// 			for(var e of this._elements){
+// 				r=e.getBoundingClientRect();
+// 				d+=(r.left+r.width/2-svgr.left)+','+(r.top+r.height/2-svgr.top)+' ';
+// 			}
+// 			this._paths[0].setAttribute('d',d);
+// 			this._paths[0].removeAttribute('marker-start');
+// 			this._paths[0].removeAttribute('marker-end');
+// 		}
+// 	}
+// 	_redraw(){
+// 		if(!this._drawing)
+// 			this._drawing=setTimeout(()=>{this._drawPath();this._drawing=null;},15);
+// 	}
+// 	_updateInternalWidth(v){this._redraw()};
+// 	_updateInternalHeight(v){this._redraw()};
+// 	v(v){
+// 		if(v.constructor===Array){
+// 			if(v[0]===null)this._uids=[];
+// 			for(var uid of v){
+// 				if(uid!==null)
+// 					this._uids.push(uid);
+// 			}
+// 		}else{
+// 			this._uids=[];
+// 		}
+// 		this._redraw();
+// 	}
+// 	tag(v){
+// 		this._element.classList.remove(...this._element.classList);
+// 		this._element.classList.add('content','frame');
+// 		if(v && v.length){
+// 			for(var tag of v){
+// 				if(tag!==null)
+// 					this._element.classList.add(tag.constructor===String?tag:('tag'+tag));
+// 			}
+// 		}
+// 		this._redraw();
+// 	}
+// 	dir(v){this._redraw();}
+// }
+// gui.L.prototype._classDefaults={c:'l',v:[]};
+// gui.L.prototype.shp=null;
+// gui.L.prototype.opq=null;
+// gui.L.prototype.w=null;
+// gui.L.prototype.h=null;
+// gui.L.prototype.iw=null;
+// gui.L.prototype.ih=null;
+// gui.L.prototype.x=null;
+// gui.L.prototype.y=null;
+// gui.L.prototype.rot=null;
 //////////////////////////////////////////////////////////////////////////////
 
-
+/* Plot
 //////////////////////////////////////////////////////////////////////////////
 // axisX & axisY
 addCSS(`
 [axisx] {margin-bottom:2.5em;overflow:visible}
 .axisX {height:2.5em;border:none;left:0px;top:100%;width:100%;position:absolute;margin:0px;overflow:visible;border-top:solid 1px gray}
-.axisXmarker {position:absolute;font-size:10px;top:3px;margin:0px;border:none;padding:0px}
+.axisXmarker {position:absolute;font-size:10px;top:3px;margin:0px;border:none;padding:0px;min-width:10px;min-height:10px}
 .axisXmarker[style~="left:"] {transform:translateX(-50%)}
 .axisXmarker[style~="right:"] {transform:translateX(50%)}
 .axisXmarker:before {content:'';width:1px;height:7px;background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
 .axisX > .title {text-align:center;position:relative;margin-top:1em;width:100%;font-size:10pt}
 [axisy] {margin-left:4em;margin-top:1em;overflow:visible}
 .axisY {border:none;right:100%;top:0;height:100%;position:absolute;overflow:visible;width:1.1em;margin:0px;border-right:solid 1px gray}
-.axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px}
+.axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px;min-height:10px}
 .axisYmarker[style~="top:"] {transform:translateY(-50%)}
 .axisYmarker[style~="bottom:"] {transform:translateY(50%)}
 .axisYmarker:after {content:'';height:1px;width:7px;background:#444;position:absolute;right:-8px;top:50%;margin:0px;border:none;padding:0px;margin-top:-0.5px}
@@ -2421,9 +2414,12 @@ addCSS(`
 `);
 gui.scrollAxisX=function(e){this._item._axisX.scrollLeft=this.scrollLeft;};
 gui.scrollAxisY=function(e){this._item._axisY.scrollTop=this.scrollTop;};
-gui.Bin.prototype._getAxisValuesOffsets=function(axis,cw,w){
+gui.Plot.prototype._getAxisValuesOffsets=function(axis,cw,w){
 	var offset=axis.x||axis.y;
 	var axisSize=Math.max(cw,w);
+	if(axis.tag && !axis.v){
+		axis.v=axis.tag.map(()=>'');
+	}
 	if(axis.v){
 		if(offset){												//yes values, yes offset
 			return [axis.v,offset];
@@ -2443,7 +2439,7 @@ gui.Bin.prototype._getAxisValuesOffsets=function(axis,cw,w){
 			}
 		}else{													//no values, no offset, yes min/max
 			offset=[];
-			for(var val=axis.min;val<=axis.max;val+=(axis.rnd||(range/10))){
+			for(var val=axis.min;val<=axis.max;val+=(axis.step||(range/10))){
 				values.push(val);
 				offset.push((val-axis.min)*axisSize/range);
 			}
@@ -2454,7 +2450,7 @@ gui.Bin.prototype._getAxisValuesOffsets=function(axis,cw,w){
 		}
 	}else{														//no values, no offset, no min/max
 		offset=[];
-		for(var val=0;val<axisSize;val+=(axis.rnd||((w||cw)/10))){
+		for(var val=0;val<axisSize;val+=(axis.step||((w||cw)/10))){
 			values.push(val);
 			offset.push(val);
 		}
@@ -2465,21 +2461,25 @@ gui.Bin.prototype._getAxisValuesOffsets=function(axis,cw,w){
 	}
 	return [values,offset];
 }
-gui.Bin.prototype._drawAxisX=function(){
+gui.Plot.prototype._drawAxisX=function(){
 	//remove old markers
 	for(var i=this._axisX.children.length;i--;){
 		if(this._axisX.children[i].className==='axisXmarker')
 			this._axisX.children[i].remove();
 	}
 	//automatically fill in missing coordinates or values
-	var axisProps=this._allprop.axisx;
-	var axis=this._getAxisValuesOffsets(axisProps,gui.INFO.cw(this),this._allprop.iw||this._allprop.w||0);
+	var axisProps=this._prop.axisx;
+	var axis=this._getAxisValuesOffsets(axisProps,this._rectcw(),this._prop.iw||this._prop.w||0);
 	//add new markers
 	for(var i=0;i<axis[0].length;i++){
 		var d=this._axisX.appendChild(document.createElement('div'));
-		d.setAttribute('class','axisXmarker');
+		d.classList.add('axisXmarker');
+		if(axisProps.tag && axisProps.tag[i]){
+			d.classList.add(...axisProps.tag[i]);
+		}
 		if(axis[0][i].constructor===String)d.innerHTML=axis[0][i];
-		else d.innerHTML=gui.numdisplay(axis[0][i],axisProps.rnd,axisProps.min||0,axisProps.unit);
+		else d.innerHTML=(gui.TYPES[axisProps.c]||gui.Num).prototype._display(axis[0][i],axisProps.step||undefined,axisProps.min||0);
+		d.setAttribute('title',d.innerHTML);
 		if(axisProps.bb===1)d.style.right=this._getSize(axis[1][i],this._getPw());
 		else d.style.left=this._getSize(axis[1][i],this._getPw());
 	}
@@ -2496,21 +2496,25 @@ gui.Bin.prototype._drawAxisX=function(){
 		this._frame.addEventListener('scroll',gui.scrollAxisX);
 	}
 }
-gui.Bin.prototype._drawAxisY=function(){
+gui.Plot.prototype._drawAxisY=function(){
 	//remove old markers
 	for(var i=this._axisY.children.length;i--;){
 		if(this._axisY.children[i].className==='axisYmarker')
 			this._axisY.children[i].remove();
 	}
 	//automatically fill in missing coordinates or values
-	var axisProps=this._allprop.axisy;
-	var axis=this._getAxisValuesOffsets(axisProps,gui.INFO.ch(this),this._allprop.ih||this._allprop.h||0);
+	var axisProps=this._prop.axisy;
+	var axis=this._getAxisValuesOffsets(axisProps,this._rectch(),this._prop.ih||this._prop.h||0);
 	//add new markers
 	for(var i=0;i<axis[0].length;i++){
 		var d=this._axisY.appendChild(document.createElement('div'));
-		d.setAttribute('class','axisYmarker');
+		d.classList.add('axisYmarker');
+		if(axisProps.tag && axisProps.tag[i]){
+			d.classList.add(...axisProps.tag[i]);
+		}
 		if(axis[0][i].constructor===String)d.innerHTML=axis[0][i];
-		else d.innerHTML=gui.numdisplay(axis[0][i],axisProps.rnd,axisProps.min||0,axisProps.unit);
+		else d.innerHTML=(gui.TYPES[axisProps.c]||gui.Num).prototype._display(axis[0][i],axisProps.step||undefined,axisProps.min||0);
+		d.setAttribute('title',d.innerHTML);
 		if(axisProps.bb===0)d.style.top=this._getSize(axis[1][i],this._getPh());
 		else d.style.bottom=this._getSize(axis[1][i],this._getPh());
 	}
@@ -2527,18 +2531,18 @@ gui.Bin.prototype._drawAxisY=function(){
 		this._frame.addEventListener('scroll',gui.scrollAxisY);
 	}
 }
-gui.Bin.prototype.axisx=function(v){
+gui.Plot.prototype.axisx=function(v){
 	if(v===null && this._axisX){
 		this._axisX.remove();
 		delete this._axisX;
-		delete this._moveTriggers.axisx;
-	}else if(v.constructor===Object){
+		// delete this._moveTriggers.axisx;
+	}else if(v && v.constructor===Object){
 		if(!this._axisX){
 			this._axisX=this._element.appendChild(document.createElement('div'));
 			this._axisX.setAttribute('class','axisX');
 		}
-		if(('title' in v) || ('unit' in v)){
-			var title=v.title||'';
+		if(('cap' in v) || ('unit' in v)){
+			var title=v.cap||'';
 			if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
 			if(title){
 				if(!this._axisX._title){
@@ -2550,23 +2554,23 @@ gui.Bin.prototype.axisx=function(v){
 				this._axisX._title.remove();
 			}
 		}
-		if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'rnd' in v || 'unit' in v || 'bb' in v)
+		if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v)
 			setTimeout(()=>this._drawAxisX(),5);
-		this._moveTriggers.axisx=()=>{this._drawAxisX()};
+		// this._moveTriggers.axisx=()=>{this._drawAxisX()};
 	}
 }
-gui.Bin.prototype.axisy=function(v){
+gui.Plot.prototype.axisy=function(v){
 	if(v===null && this._axisY){
 		this._axisY.remove();
 		delete this._axisY;
-		delete this._moveTriggers.axisy;
-	}else if(v.constructor===Object){
+		// delete this._moveTriggers.axisy;
+	}else if(v && v.constructor===Object){
 		if(!this._axisY){
 			this._axisY=this._element.appendChild(document.createElement('div'));
 			this._axisY.setAttribute('class','axisY');
 		}
-		if(('title' in v) || ('unit' in v)){
-			var title=v.title||'';
+		if(('cap' in v) || ('unit' in v)){
+			var title=v.cap||'';
 			if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
 			if(title){
 				if(!this._axisY._title){
@@ -2578,138 +2582,180 @@ gui.Bin.prototype.axisy=function(v){
 				this._axisY._title.remove();
 			}
 		}
-		if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'rnd' in v || 'unit' in v || 'bb' in v)
+		if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v)
 			setTimeout(()=>this._drawAxisY(),5);
-		this._moveTriggers.axisy=()=>{this._drawAxisY()};
+		// this._moveTriggers.axisy=()=>{this._drawAxisY()};
 	}
 }
 //////////////////////////////////////////////////////////////////////////////
+*/
 
-
+// TODO: animation changes
 //////////////////////////////////////////////////////////////////////////////
 // animation
-gui.animationTargetDone=function(animation,curval){
-	animation.ti++;											//next target value
-	if(animation.ta &&
-		(++animation.tai)===animation.ta.length)			//next target attraction force
-			animation.tai=0;
-	if(animation.ti===animation.to.length){
-		if(animation.tu--){									//next repeat cycle
-			animation.ti=0;
-		}else{												//if this is last target, stop animation
-			gui.animations.delete(animation);
-			animation._item._allprop['+'+animation._propName]=
-				animation._item._prop['+'+animation._propName]=null;
-		}
-	}
-	if(animation.tu>-1){
-		if(animation.te!==null && animation.te.constructor===Number){	//change to exit velocity as proportion of terminal velocity
-			animation.vy*=animation.te;
-		}else if(animation.te && animation.te.constructor===Array){		//change to next exit-velocity in "te" carousel
-			animation.vy=animation.te[animation.tei];
-			if((++animation.tei)===animation.te.length)		//next exit velocity
-				animation.tei=0;
-		}else{															//default behavior -- bounce off toward next goal
-			if((animation.to[animation.ti]>curval && animation.vy<0) ||
-				(animation.to[animation.ti]<curval && animation.vy>0))
-					animation.vy*=-1;
-		}
-	}
-}
-gui.animate=function(timeStep,animation){
-	if(document.body.contains(animation._item._element)){
-		var goal=animation.to===null?null:animation.to[animation.ti];
-		var curval=animation._item._allprop[animation._propName];
-		//check target attraction
-		if(goal!==null && animation.ta){
-			var acceleration=animation.ta[animation.tai]*timeStep/1000;
-			if(acceleration<0 &&
-					((curval<goal&&animation.vy>0)||
-					(curval>goal&&animation.vy<0))){
-				if(curval<goal){
-					animation.vy+=acceleration;
-					if(animation.vy<=0){
-						animation.vy=0;
-						gui.animationTargetDone(animation,curval);
-					}
-				}else if(curval>goal){
-					animation.vy-=acceleration;
-					if(animation.vy>=0){
-						animation.vy=0;
-						gui.animationTargetDone(animation,curval);
-					}
-				}
-			}else{
-				if(curval<goal)animation.vy+=acceleration;
-				else if(curval>goal)animation.vy-=acceleration;
-			}
-		}
-		//increment property value according to its velocity
-		if(animation.vy){
-			var newval=curval+animation.vy*timeStep/1000;
-			if(goal!==null && (curval<goal&&newval>=goal)||(curval>goal&&newval<=goal)){ //if target value was reached, animate to next target or stop
-				newval=goal;
-				gui.animationTargetDone(animation,newval);
-			}
-			//refresh animated property on display
-			animation._item._allprop[animation._propName]=animation._item._prop[animation._propName]=newval;
-			animation._item[animation._propName](newval);
-		}
-	}else{
-		gui.animations.delete(animation);
-	}
-}
-gui.startAnimation=function(animation,item,propName){
-	//add references to this animation object
-	animation._item=item;
-	animation._propName=propName;
-	//defaults
-	if(!animation.vy)animation.vy=0;
-	if(!animation.ti)animation.ti=0;
-	if(!animation.tu)animation.tu=0;
-	if(!animation.tai)animation.tai=0;
-	if(!animation.tei)animation.tei=0;
-	if(animation.te===undefined)animation.te=null;
-	//turn "to" into array or null
-	if(animation.to===undefined)animation.to=null;
-	else if(animation.to!==null&&animation.to.constructor!==Array)animation.to=[animation.to];
-	//turn "ta" into array or null
-	if(animation.ta===undefined)animation.ta=null;
-	else if(animation.ta!==null&&animation.ta.constructor!==Array)animation.ta=[animation.ta];
-	//start animation
-	gui.animations.add(animation);
-}
-gui.Num.prototype['+v']=function(v){gui.startAnimation(this._allprop['+v'],this,'v')}
-gui.Item.prototype['+x']=function(v){
-	if(this._allprop.x===undefined || this._allprop.x===null){
-		this._allprop.x=this._prop.x=0;
-		this.x(0);
-	}
-	this._setAttr('x','');
-	gui.startAnimation(this._allprop['+x'],this,'x');
-}
-gui.Item.prototype['+y']=function(v){
-	if(this._allprop.y===undefined || this._allprop.y===null){
-		this._allprop.y=this._prop.y=0;
-		this.y(0);
-	}
-	this._setAttr('y','');
-	gui.startAnimation(this._allprop['+y'],this,'y');
-}
-gui.Item.prototype['+w']=function(v){
-	if(this._allprop.w===undefined || this._allprop.w===null){
-		this._allprop.w=this._prop.w=0;
-		this.w(0);
-		this._setAttr('w','');
-	}
-	gui.startAnimation(this._allprop['+w'],this,'w');
-}
-gui.Item.prototype['+h']=function(v){
-	if(this._allprop.h===undefined || this._allprop.h===null){
-		this._allprop.h=this._prop.h=0;
-		this.h(0);
-		this._setAttr('h','');
-	}
-	gui.startAnimation(this._allprop['+h'],this,'h');
-}
+// gui.removeAnimation=function(animation){
+// 	gui.animations.delete(animation);
+// 	animation._item._prop['+'+animation._propName].ti="";
+// }
+// function getAccelerationFromDeltaVelocity(v_i,v_f,x_i,x_f){
+// 	return 0.5*(v_f-v_i)*(v_f+v_i)/Math.abs(x_f-x_i);
+// }
+// gui.setAcceleration=function(animation){
+// 	if(animation.ta){
+// 		animation._ta=animation.ta[animation.ti % animation.ta.length];
+// 		if(animation._ta.constructor===String){
+// 			animation._ta=getAccelerationFromDeltaVelocity(
+// 				animation['+'], parseFloat(animation._ta)||0,
+// 				animation._item._prop[animation._propName]||0, //animation._curval,
+// 				animation._to
+// 			);
+// 			if(Math.abs(animation._ta)<1e-9)animation._ta=0;
+// 		}
+// 	}
+// }
+// gui.animationTargetDone=function(animation,curval){
+// 	//if there is no speed/acceleration left in this animation, remove it
+// 	if(!animation['+'] && !animation.ta.some(a=>parseFloat(a)>0)){
+// 		gui.removeAnimation(animation);
+// 		return;
+// 	}
+// 	//move onto next target, and if there is more targets...
+// 	if(++animation.ti < (animation.to.length*(animation.tu+1))){
+// 		animation._to=animation.to[animation.ti % animation.to.length]; //keep index within specified target array
+// 		gui.setAcceleration(animation);									//get next acceleration
+// 		if(animation.te && animation.te.length){						//change to next exit-velocity (as proportion of current velocity)
+// 			let te=animation.te[(animation.ti-1) % animation.te.length];
+// 			if(te.constructor===String){
+// 				animation['+']*=parseFloat(te);
+// 			}else if(te.constructor===Number){
+// 				animation['+']=te;
+// 			}
+// 		}else{															//default behavior -- bounce off toward next goal
+// 			if((animation._to>curval && animation['+']<0) ||
+// 				(animation._to<curval && animation['+']>0))
+// 					animation['+']*=-1;
+// 		}
+// 	}else{	//if this is last target, stop animation
+// 		gui.removeAnimation(animation);
+// 	}
+// }
+// gui.animate=function(timeStep,animation){   //TODO: optimization: make this Item._animate (that way animation._item gets replaced with this for fewer lookups)
+// 	if(animation._item._exists() &&
+// 			animation._item._prop[animation._aniprop] &&
+// 			animation.ti.constructor===Number){
+// 		var curval=animation._curval,
+// 			goal=animation._to;
+// 		//check target attraction
+// 		if(goal!==undefined && animation._ta){
+// 			var acceleration=animation._ta*timeStep;
+// 			if(acceleration<0){ //resistence
+// 				if(animation['+']>0){
+// 					animation['+']+=acceleration;
+// 					if(animation['+']<=0){  //if velocity reaches/passes zero, move onto next target
+// 						animation['+']=0;
+// 						gui.animationTargetDone(animation,curval);
+// 					}
+// 				}else if(animation['+']<0){
+// 					animation['+']-=acceleration;
+// 					if(animation['+']>=0){  //if velocity reaches/passes zero, move onto next target
+// 						animation['+']=0;
+// 						gui.animationTargetDone(animation,curval);
+// 					}
+// 				}
+// 			}else{  //accelerate toward target
+// 				if(curval<goal)animation['+']+=acceleration;
+// 				else if(curval>goal)animation['+']-=acceleration;
+// 			}
+// 		}
+// 		//increment property value according to its velocity
+// 		if(animation['+']){
+// 			var newval=curval+animation['+']*timeStep;
+// 			if(goal!==undefined && (curval<goal&&newval>=goal)||(curval>goal&&newval<=goal)){ //if target value was reached, animate to next target or stop
+// 				newval=goal;
+// 				gui.animationTargetDone(animation,newval);
+// 			}
+// 			//refresh animated property on display
+// 			animation._curval=newval;
+// 			if(animation.step){
+// 				if(Math.abs(animation._item._prop[animation._propName]-newval)>=animation.step){
+// 					animation._item._prop[animation._propName]=animation._item._prop[animation._propName]=newval;
+// 					animation._item[animation._propName](newval);
+// 				}
+// 			}else{
+// 				animation._item._prop[animation._propName]=animation._item._prop[animation._propName]=newval;
+// 				animation._item[animation._propName](newval);
+// 			}
+// 		}
+// 	}else{
+// 		gui.animations.delete(animation);
+// 	}
+// }
+// gui.startAnimation=function(animation,item,propName){
+// 	if(animation){
+// 		//add references to this animation object and other hidden animation properties
+// 		hiddenProp(animation,'_item',item);
+// 		hiddenProp(animation,'_propName',propName);
+// 		hiddenProp(animation,'_aniprop','+'+propName);
+// 		hiddenProp(animation,'_curval',item._prop[propName]||0);
+// 		hiddenProp(animation,'_to');
+// 		hiddenProp(animation,'_te');
+// 		hiddenProp(animation,'_ta');
+// 		//defaults
+// 		if(!animation['+'])animation['+']=0;
+// 		if(!animation.tu)animation.tu=0;
+// 		if(animation.te===undefined)animation.te=null;
+// 		if(!animation.step)animation.step=item._prop.step;
+// 		else if(animation.step<0)animation.step*=-1;
+// 		//init target index
+// 		if(animation.ti===undefined)animation.ti=0;
+// 		//turn "to" into array or null
+// 		if(animation.to===undefined){
+// 			animation.to=null;
+// 		}else if(animation.to!==null){
+// 			if(animation.to.constructor!==Array)
+// 				animation.to=[animation.to];
+// 			animation._to=animation.to[animation.ti % animation.to.length];
+// 		}
+// 		//turn "ta" into array or null
+// 		if(animation.ta===undefined){
+// 			animation.ta=null;
+// 		}else if(animation.ta!==null){
+// 			if(animation.ta.constructor!==Array)
+// 				animation.ta=[animation.ta];
+// 			gui.setAcceleration(animation);
+// 		}
+// 		//turn "te" into array or null
+// 		if(animation.te===undefined){
+// 			animation.te=null;
+// 		}else if(animation.te!==null){
+// 			if(animation.te.constructor!==Array)
+// 				animation.te=[animation.te];
+// 			animation._te=animation.te[animation.ti % animation.te.length];
+// 		}
+// 		//start animation
+// 		if(animation['+'] || // if there velocity or acceleration
+// 			 (animation.to && animation.ta &&
+// 				animation.ta.some(a=>parseFloat(a)>0))){
+// 			gui.animations.add(animation);
+// 			return true;
+// 		}
+// 	}
+// }
+// gui.Num.prototype['+v']=function(v){gui.startAnimation(this._prop['+v'],this,'v')}
+// gui.Item.prototype['+x']=function(v){
+// 	if(gui.startAnimation(this._prop['+x'],this,'x'))
+// 		this._setAttr('x','');
+// }
+// gui.Item.prototype['+y']=function(v){
+// 	if(gui.startAnimation(this._prop['+y'],this,'y'))
+// 		this._setAttr('y','');
+// }
+// gui.Item.prototype['+w']=function(v){
+// 	if(gui.startAnimation(this._prop['+w'],this,'w'))
+// 		this._setAttr('w','');
+// }
+// gui.Item.prototype['+h']=function(v){
+// 	if(gui.startAnimation(this._prop['+h'],this,'h'))
+// 		this._setAttr('h','');
+// }
 //////////////////////////////////////////////////////////////////////////////

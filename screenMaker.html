@@ -1,0 +1,121 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta charset="utf-8"/>
+<html><head></head><body></body>
+
+<script src="u1.js"></script>
+<script>
+"use strict";
+
+//TODO: 
+//  UINL should actually be UIOM -- enabling user to edit properties of each clicked object in preview
+//      add clickability to every object in preview, then display each clicked object in UIOM window to edit
+//      Add Component should only be visible when clicked object is a bin
+
+
+logToConsole();
+
+var curDate=(new Date()),curDateTime=Math.floor(curDate.getTime()/1000)-curDate.getTimezoneOffset()*60;
+
+var COMPONENTS = new Map([
+    ['bin', {"c":"bin","id":"title","v":[]}],
+    ['txt', {"c":"txt","v":"hello world"}],
+    ['num', {"c":"num","id":"X","v":0}],
+    ['btn', {"c":"btn","id":"press me"}],
+    ['opt', {"c":"opt","id":"select me"}],
+    ['date', {"c":"dt","v":curDateTime,"step":86400}],
+    ['date-time', {"c":"dt","v":curDateTime,"step":60}],
+    ['grid', {"c":"grid","id":"table","v":[["A","B","C"],[1,2,3],[4,5,6]]}]
+]);
+
+
+var lastUINL=`{"v":[\n  \n]}\n`;
+
+
+function userEvent(msg){
+    var itemId=msg.u,itemValue=msg.v,uinl,display={};
+    if(msg.t==0){  // on handshake
+        display.cap='UINL demo';
+        display.require={c:['grid','opt','doc'],fmt:['mkdn']};
+        display.style=`
+                [level="0"]>.frame>.content {
+                    width:100%;
+                    height:100%;
+                    display:grid;
+                    grid-template-areas: "lt rt" "bottom bottom";
+                    grid-auto-rows: auto min-content;
+                    grid-template-columns: 1fr 1fr;
+                }
+                #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray;padding:5px;grid-area:lt}
+                #UINL {grid-area:rt;display:flex;flex-direction:column}
+                #UINL>.title {flex: 0 1 auto;}
+                #UINL>.content {flex: 1 1 auto;height:100%;max-height:none;font-size:11pt}
+                [id="Add Component"] {grid-area:bottom}
+                #Warning {text-align:right;color:#a00}
+                #Warning * {display:inline}
+            `;
+        display.v=[
+            {id:"Preview"},
+            {id:"UINL",cap:"APP→UI message",v:lastUINL,in:1,on:{v:[],fcs:[]}},
+            {id:"Add Component",v:[...COMPONENTS.keys()].map(x=>({id:x,c:'btn'}))},
+        ];
+    }else{ // on any user event other than handshake
+        display.Q=[];
+        display.Q.push({U:'UI→APP message',v:null});
+        display.Q.push({U:'Warning',v:null});
+        let addItems=[];
+        // if user is editing UINL directly
+        if(itemId=='UINL'){
+            if('fcs' in msg){   // if user focused or left uinl textarea, re-indent it
+                if(lastUINL){
+                    display.Q.push({U:'UINL',v:lastUINL});
+                }
+            }else{
+                try{
+                    uinl=JSON.parse(itemValue);
+                    if(uinl.constructor===Object){
+                        itemValue=JSON.stringify(uinl,null,2);
+                        if(itemValue!==lastUINL){
+                            lastUINL=itemValue;
+                            uinl.id='Preview';
+                            uinl.i=0;
+                            display.Q.push({U:'Preview',v:null});
+                            addItems.push(uinl);
+                        }
+                    }else{
+                        addItems.push({id:'Warning',v:'APP→UI message must be a JSON object.'});
+                    }
+                }catch(e){
+                    if(e.message.includes('JSON')){
+                        addItems.push({id:'Warning',v:'Invalid JSON string'});
+                    }else{
+                        throw(e);
+                    }
+                }
+            }
+        // if user clicked one of the component buttons
+        }else if(COMPONENTS.has(itemId)){ // check if one of the COMPONENTS buttons was clicked
+            uinl=JSON.parse(lastUINL);
+            if(!uinl.v || uinl.v.constructor!==Array)uinl.v=[];
+            uinl.v.push(COMPONENTS.get(itemId));
+            lastUINL=JSON.stringify(uinl,null,2);
+            display.Q.push({U:'UINL',v:lastUINL});
+            uinl.id='Preview';
+            uinl.i=0;
+            uinl.df={on:{pc:[]}};
+            display.Q.push({U:'Preview',v:null});
+            addItems.push(uinl);
+        // if user clicked one of the preview items
+        }else if(msg.pc){ // check for point-click event
+            console.log(msg);
+        // if one of the preview components is toggled/edited
+        }else{
+            addItems.push({id:'UI→APP message',v:JSON.stringify(msg)});
+        }
+        display.Q.push({A:addItems});
+    }
+    app.display(display);
+}
+</script>
+</html>
