@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230227)';
+const USERAGENT='u1js (v1.1.20230302)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -173,8 +173,10 @@ function localTimestamp(){
 }
 function dateISO(){
 	var d=new Date(localTimestamp()*1000),
-		tz=d.getTimezoneOffset();
-	return d.toJSON().substring(0,23)+(tz>=0?'+':'-')+(tz/60).toString().padStart(2,'0')+(tz%60).toString().padStart(2,'0');
+		tzo=d.getTimezoneOffset(),
+		tzoSign=(tzo<=0?'+':'-');
+	tzo=Math.abs(tzo);
+	return d.toJSON().substring(0,23)+tzoSign+Math.floor(tzo/60).toString().padStart(2,'0')+(tzo%60).toString().padStart(2,'0');
 }
 HTMLElement.prototype._listen=function(event,fun){
 	if(!this._listeners)this._listeners={};
@@ -234,12 +236,16 @@ window.addEventListener('keydown',e=>{
 // gui object definitions
 function gui(data){
 	if(data.constructor===Object){
+		data=gui.shortProp(data);
 		gui.rootContainer._update(data);
 	}
 }
 gui.appEvent=function(msg){
 	logline(msg);
-	gui(JSON.parse(msg));
+	gui(msg);
+}
+gui.appEventJSON=function(msg){
+	gui.appEvent(JSON.parse(msg));
 }
 
 
@@ -263,7 +269,7 @@ gui.resetDisplay=function(){
 // gui.ums=function(){return Date.now()-gui.startTime;};
 gui.ums=0;
 gui.sendUserEvent=async function(msg){
-	msg.t=gui.ums;
+	msg.t=gui.ums||1; //set msg time (never set to zero, so there's only 1 handshake message)
 	if(gui.session)msg.s=gui.session;
 	logline(msg);
 	gui.checkMessageTriggers(msg);
@@ -271,13 +277,23 @@ gui.sendUserEvent=async function(msg){
 };
 gui.vType=function(v){return {undefined:gui.Bin,object:gui.Bin,string:gui.Txt,number:gui.Num,boolean:gui.Btn}[typeof(v)]};
 gui.getType=function(prop){if(prop.c && (prop.c in gui.TYPES))return gui.TYPES[prop.c]};
-gui.shortProps=function(prop){
-	var propShort={};
-	for(let propName in prop){
-		propShort[gui.LONGFORM[propName]||propName]=prop[propName];
+gui.shortProp=function(propVal){
+	if(propVal && propVal.constructor===Object){
+		var propShort={};
+		for(let prop of Object.entries(propVal)){
+			propShort[gui.LONGFORM[prop[0]]||prop[0]]=gui.shortProp(prop[1]);
+		}
+		return propShort;
+	}else if(propVal && propVal.constructor===Array){
+		var propShort=[];
+		for(let prop of propVal){
+			propShort.push(gui.shortProp(prop));
+		}
+		return propShort;
+	}else{
+		return propVal;
 	}
-	return propShort;
-};
+}
 gui.prop=x=>(x.constructor===Object)?x:{v:x};
 gui.getColor=v=>getComputedStyle(document.body).getPropertyValue('--color'+v);
 gui.color=v=>gui.getColor(v)?`var(--color${v})`:v;
@@ -519,7 +535,6 @@ gui.Item=class{
 		gui.scheduledUpdates[prop.Tn]=intervalId;
 	}
 	_update(prop){
-		prop=gui.shortProps(prop);
 		if(prop.Td){								//delay current update for a specified number of seconds
 			let delay=prop.Td*1000;
 			delete prop.Td;
@@ -717,7 +732,6 @@ gui._Container=class extends gui.Item{
 		super._initDefaults(prop);
 	}
 	_update(prop){
-		prop=gui.shortProps(prop);
 		if(prop.Td){							//delay current update for a specified number of seconds
 			let delay=prop.Td*1000;
 			delete prop.Td;
@@ -884,7 +898,6 @@ gui.Root=class extends gui._Container{
 		this._ph=1;
 	}
 	_update(prop){
-		prop=gui.shortProps(prop);
 		if('Tc' in prop){gui.cancelScheduledEvents(prop.Tc)};
 		if(prop.T){				//delay current update until a specific time
 			let delay=prop.T-gui.ums;
@@ -1182,17 +1195,18 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 			platform: navigator.userAgent,
 			time: dateISO(),
 			url: location.href,
+			screen:objectify(screen),
 			t:0
 		};
 		logline(msg);
-		gui.startTime=Date.now();		// mark start-time
+		// gui.startTime=Date.now()-1000;		// mark start-time
 		gui.userEvent(msg);				// send handshake message to initiate app
 	}
 	function connectToTaskScript(){
 		//	connect gui.userEvent to app.userAction
 		gui.userEvent=app.userEvent || userEvent;
 		//	connect app.display to gui.update;
-		app.display=gui.display=function(data){gui.appEvent(JSON.stringify(data));};
+		app.display=gui.display=gui.appEvent;
 		//	start app
 		onTaskConnect();
 	}
@@ -1204,7 +1218,7 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 				body:JSON.stringify(data)
 			})
 			.then(r=>r.text())
-			.then(gui.appEvent);
+			.then(gui.appEventJSON);
 		};
 		onTaskConnect();
 	}
@@ -1219,7 +1233,7 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 				console.log('Connection closed ('+event.code+').');
 			};
 			gui.ws.onopen=onTaskConnect;
-			gui.ws.onmessage=gui.appEvent;
+			gui.ws.onmessage=gui.appEventJSON;
 		}else{
 			gui({v:[null,{id:'Error',v:'Your browser does not support websockets. Please use a modern browser to run this application.'}]});
 		}

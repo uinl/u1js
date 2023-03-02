@@ -12,51 +12,41 @@ logToConsole();
 
 var SAMPLE_UINL = new Map([
 
-    ['text', `{"v":[
+    ['text', `{"value":[
  "Hello World!",
  "UINL container is just a list of item declarations",
- {"id":"More Text","v":[
+ {"id":"More Text","value":[
   "here's more text",
   "there's more text"
  ]}
 ]}`],
 
-    ['buttons', `{"v":[
- {"id":"Press me","c":"btn"},
- {"id":"No, press me","c":"btn"},
- {"id":"Hold me","c":"hold"}
+    ['buttons', `{"value":[
+ {"id":"Press me","class":"btn"},
+ {"id":"No, press me","class":"btn"},
+ {"id":"Hold me","class":"hold"}
 ]}`],
 
-['text inputs', `{"v":[
+['text inputs', `{"value":[
   "to change a text field into input, use \\"in\\" property",
   "if text has a newline character, it will become multi-line text input",
-  {"id":"name","v":"","input":1},
-  {"id":"message","v":"\\n","input":1}
+  {"id":"name","value":"","input":1},
+  {"id":"message","value":"\\n","input":1}
 ]}`],
 
-    ['numbers and time', `{"v":[
-  {"c":"num","id":"money","unit":"$","step":0.01,"v":40.25},
-  {"id":"numeric input","v":0,"input":1,"step":5,"min":0,"max":100},
-  {"c":"dt","id":"date and time","v":1677508000,"step":60},
-  {"c":"dt","id":"date input","v":1677508000,"step":86400,"input":1},
-  {"c":"time","id":"time input","step":0.1,"v":564,"input":1}
+    ['numbers and time', `{"value":[
+  {"class":"num","id":"money","unit":"$","step":0.01,"value":40.25},
+  {"id":"numeric input","value":0,"input":1,"step":5,"min":0,"max":100},
+  {"class":"dt","id":"date and time","value":1677508000,"step":60},
+  {"class":"dt","id":"date input","value":1677508000,"step":86400,"input":1},
+  {"class":"time","id":"time input","step":0.1,"value":564,"input":1}
 ]}`],
 
-// ['numbers and time', `{"v":[
-//   {"id":"numeric input","v":0,"in":1,"step":5,"min":0,"max":100},
-//   {"c":"num","id":"money","step":0.25,"unit":"$",
-//     "+v":{"+":1}},
-//   {"c":"time","id":"time","step":0.1,
-//     "+v":{"+":1}},
-//   {"c":"dt","id":"date","v":946684800,"step":86400,
-//     "+v":{"+":86400}}
-// ]}`],
-
-    ['container w/ checkboxes', `{"v":[
+    ['container w/ checkboxes', `{"value":[
  {
   "id":"Choose cars",
-  "defaults":{"c":"opt"},
-  "v":[
+  "defaults":{"class":"opt"},
+  "value":[
    {"id":"Subaru"},
    {"id":"Ford"},
    {"id":"Tesla"}
@@ -64,11 +54,11 @@ var SAMPLE_UINL = new Map([
  }
 ]}`],
 
-    ['container w/ radio buttons', `{"v":[
+    ['container w/ radio buttons', `{"value":[
  {
   "id":"Choose a car",
-  "defaults":{"c":"opt","optionGroup":"cars"},
-  "v":[
+  "defaults":{"class":"opt","optionGroup":"cars"},
+  "value":[
    {"id":"Subaru"},
    {"id":"Ford"},
    {"id":"Tesla"}
@@ -76,93 +66,46 @@ var SAMPLE_UINL = new Map([
  }
 ]}`],
 
-    ['table', `{"v":[
+    ['table', `{"value":[
  {
   "id":"Personnel",
-  "c":"grid",
+  "class":"grid",
   "headerRow":1,
   "defaults":{
     "optionGroup":"wrk",
     "step":0.01,
     "unit":"$"
   },
-  "v":[
+  "value":[
    ["Name","Gender","Salary","Working this week"],
-   {"id":"P801","v":["Max Brownwell","female",22.75,{"c":"opt"}]},
-   {"id":"P807","v":["Carrie Vanilla","male",22,{"c":"opt"}]},
-   {"id":"P811","v":["Jenny Jerrings","female",21,{"c":"opt"}]},
-   {"id":"P832","v":["Jerry Jennings","male",21,{"c":"opt"}]}
+   {"id":"P801","value":["Max Brownwell","female",22.75,{"class":"opt"}]},
+   {"id":"P807","value":["Carrie Vanilla","male",22,{"class":"opt"}]},
+   {"id":"P811","value":["Jenny Jerrings","female",21,{"class":"opt"}]},
+   {"id":"P832","value":["Jerry Jennings","male",21,{"class":"opt"}]}
   ]
  },
  "there are twenty-five UI component classes in UINL, several of which are container widgets, including table, win (popup), and one (tabs)"
 ]}`],
 
-    ['tabs', `{"v":[
+    ['tabs', `{"value":[
  {
   "id":"Personnel",
-  "c":"one",
+  "class":"one",
   "defaults":{
     "step":0.01,
     "unit":"$"
   },
-  "v":[
-   {"id":"P801","v":[{"id":"Name","v":"Max Brownwell"},{"id":"Gender","v":"female"},{"id":"Salary","v":22.75}]},
-   {"id":"P807","v":[{"id":"Name","v":"Carrie Vanilla"},{"id":"Gender","v":"male"},{"id":"Salary","v":22}]},
-   {"id":"P811","v":[{"id":"Name","v":"Jenny Jerrings"},{"id":"Gender","v":"female"},{"id":"Salary","v":21}]},
-   {"id":"P832","v":[{"id":"Name","v":"Jerry Jennings"},{"id":"Gender","v":"male"},{"id":"Salary","v":21}]}
+  "value":[
+   {"id":"P801","value":[{"id":"Name","value":"Max Brownwell"},{"id":"Gender","value":"female"},{"id":"Salary","value":22.75}]},
+   {"id":"P807","value":[{"id":"Name","value":"Carrie Vanilla"},{"id":"Gender","value":"male"},{"id":"Salary","value":22}]},
+   {"id":"P811","value":[{"id":"Name","value":"Jenny Jerrings"},{"id":"Gender","value":"female"},{"id":"Salary","value":21}]},
+   {"id":"P832","value":[{"id":"Name","value":"Jerry Jennings"},{"id":"Gender","value":"male"},{"id":"Salary","value":21}]}
   ]
  },
  "component class \\"one\\" is used to display a widget with several visible containers of which only one is visible at a time (e.g., tabs, carousel, accordion)"
 ]}`],
 
-// TODO: add plot
-
-
-//     ['animation2', `{"v":[
-//  {"h":100,"w":200,
-//   "df":{
-//       "w":15,"h":15,"shp":1,"tag":[0],
-//       "+x":{"ta":-10,"tu":9e99},
-//       "+y":{"to":83,"ta":300,"te":"-0.5","tu":10}
-//   },
-//   "v":[
-//     {"+x":{"+":80,"to":[183,0]}},
-//     {"x":183,"+x":{"+":-80,"to":[0,183]}}
-//   ]
-//  }
-// ]}`],
-
-//     ['animation', `{"v":[
-//  {"h":100,"w":200,"v":[
-//    {"w":15,"h":15,"shp":1,"tag":[0],
-//     "+x":{"to":[183,0],"+":80,"ta":-10},
-//     "+y":{"to":83,"ta":300,"te":"-0.5","tu":10}}
-//   ]
-//  }
-// ]}`],
-
-//     ['lines and axes',`{"v":[
-//  {"id":"some data",
-//   "w":200,"h":200,"iw":300,"ih":20,
-//   "axisx":{"title":"times","c":"time","step":60},
-//   "axisy":{"title":"scores","min":-10,"max":10},
-//   "df":{"cc":3,"bb":2},
-//   "v":[
-//    {"x":0,"y":10,"tag":["series1"]},
-//    {"x":60,"y":15,"tag":["series1"]},
-//    {"x":120,"y":13,"tag":["series1"]},
-//    {"x":180,"y":5,"tag":["series1"]},
-//    {"x":240,"y":1,"tag":["series1"]},
-//    {"x":0,"y":12,"tag":["series2"]},
-//    {"x":60,"y":14,"tag":["series2"]},
-//    {"x":120,"y":10,"tag":["series2"]},
-//    {"x":180,"y":9,"tag":["series2"]},
-//    {"x":240,"y":8,"tag":["series2"]},
-//    {"c":"l","tag":["series1"]},
-//    {"c":"l","tag":["series2"]}
-//   ]
-//  }
-// ]}`],
+// TODO: add plot/data, gr, animation
 
 ]);
 
@@ -173,8 +116,8 @@ var lastValue;
 function userEvent(msg){
     var itemId=msg.u,itemValue=msg.v,uinl,display={Q:[]};
     if(msg.t<=1){  // on handshake
-        display.cap='UINL demo';
-        display.require={c:['grid','opt','doc'],fmt:['mkdn']};
+        display.caption='UINL demo';
+        display.require={c:['grid','opt','doc'],fmt:['mkdn'],caption:[]};
         display.style=`
                 #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray;padding:5px}
                 #Warning {text-align:right;color:#a00}

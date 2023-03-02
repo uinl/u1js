@@ -1,0 +1,49 @@
+<html><head>
+<script src="u1.js"></script>
+<script>
+    function userEvent(event){
+        if(event.t===0){
+            // on handshake
+            //  (event.t refers to time since handshake; event.t is 0)
+            app.display({
+                value:[
+                    "Hello World!",
+                    {
+                        id: "Your UI",
+                        value:[
+                            {id:"UINL user-agent software",value:event.userAgent},
+                            {id:"Platform",value:event.platform},
+                            {id:"Screen size",value:event.screen?`${event.screen.width}x${event.screen.height}`:""},
+                            {id:"Available window size",value:event.wh?`${event.wh[0]}x${event.wh[1]}`:""},
+                            {id:"Your system time",value:''+new Date(event.time)},
+                        ]
+                    },
+                    {class:"btn",id:"Click Me"},
+                    {class:"hold",id:"Hold Me"}
+                ]
+            });
+        }else if(event.u==="Click Me"){
+            // when button "Click Me" is clicked
+            //  (event.u refers to the unique id of user-event target element)
+            app.display({
+                add:[
+                    'You clicked the "Click Me" button!'
+                ]
+            })
+        }else if(event.u==="Hold Me"){
+            // when button "Hold Me" is toggled
+            //  (event.u refers to the unique id of user-event target element)
+            app.display({
+                add:[
+                    // depending on whether the hold button is pressed or let go
+                    //  (event.v refers to the value of user-event target element;
+                    //   when a hold-down button is down, its value is true;
+                    //   when a hold-down button is released, its value is false)
+                    event.v?
+                        'You are holding the "Hold Me" button.'
+                        :'You let go of the "Hold Me" button.'
+                ]
+            })
+        }
+    }
+</script></head><body></body></html>
