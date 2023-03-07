@@ -442,6 +442,7 @@ addCSS(`
 --colorHead: #f0f8f8;
 --colorBorder: #e8e8e8;
 --colorFalse: #f8f8f8;
+--colorFalseHover: #f0f0f0;
 --colorTrue: lightblue;
 --colorLink: #0066ff;
 }
@@ -1095,6 +1096,7 @@ gui.Num.prototype._classDefaults={c:'num',v:0};
 // boolean items
 addCSS(`
 [c='btn']:active {background-color:var(--colorTrue) !important;}
+[c='btn']:hover {background-color:var(--colorFalseHover) !important;}
 [c='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;}
 [c='btn'] > * {display:inline-block}
 [c='btn']:not([shp]) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3)}
