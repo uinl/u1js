@@ -32,6 +32,25 @@ Is u1js just for client-side applications?
         </script></head><body></body></html>
 
 
+### Hello World example with server-side application code, using the POST method to send user events:
+
+        <html><head><script src="https://cdn.jsdelivr.net/gh/uinl/u1js/u1.min.js"></script><script>
+            const app = {
+                location: 'https://uinldemo.ue.r.appspot.com/'
+            }
+        </script></head><body></body></html>
+
+
+### Hello World example with server-side application code, using the GET method to send user events:
+
+        <html><head><script src="https://cdn.jsdelivr.net/gh/uinl/u1js/u1.min.js"></script><script>
+            const app = {
+                method: 'GET',
+                location: 'https://uinl.github.io/u1js/helloworld.json'
+            }
+        </script></head><body></body></html>
+
+
 
 More details on UINL may be found at https://uinl.github.io (repo at https://github.com/uinl/uinl).
 

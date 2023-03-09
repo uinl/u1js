@@ -1205,11 +1205,11 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 		if((location.params.method && location.params.method.toUpperCase()==='GET') || (app.method && app.method.toUpperCase()==='GET')){
 			// parse app.location, add event= param to search string
 			var [url,search]=app.location.split('?');
-			if(!search){
-				url+='?event='
+			if(search){
+				if(search.endsWith('&'))url=app.location+'event=';
+				else url=app.location+'&event=';
 			}else{
-				if(search.endsWith('&'))url+=search+'event=';
-				else url+=search+'&event=';
+				url+='?event='
 			}
 			// create gui.userEvent function to send event data via GET (in the search string under the event parameter)
 			gui.userEvent=function(data){
