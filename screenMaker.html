@@ -33,9 +33,9 @@ var COMPONENTS = new Map([
 var lastUINL=`{"v":[\n  \n]}\n`;
 
 
-function userEvent(msg){
-    var itemId=msg.u,itemValue=msg.v,uinl,display={};
-    if(msg.t==0){  // on handshake
+function userEvent(event){
+    var itemId=event.u,itemValue=event.v,uinl,display={};
+    if(event.t==0){  // on handshake
         display.cap='UINL demo';
         display.require={c:['grid','opt','doc'],fmt:['mkdn']};
         display.style=`
@@ -67,7 +67,7 @@ function userEvent(msg){
         let addItems=[];
         // if user is editing UINL directly
         if(itemId=='UINL'){
-            if('fcs' in msg){   // if user focused or left uinl textarea, re-indent it
+            if('fcs' in event){   // if user focused or left uinl textarea, re-indent it
                 if(lastUINL){
                     display.Q.push({U:'UINL',v:lastUINL});
                 }
@@ -103,17 +103,17 @@ function userEvent(msg){
             display.Q.push({U:'UINL',v:lastUINL});
             uinl.id='Preview';
             uinl.i=0;
-            uinl.df={on:{pc:[]}};
+            // uinl.df={on:{pc:[]}};
             display.Q.push({U:'Preview',v:null});
             addItems.push(uinl);
         // if user clicked one of the preview items
-        }else if(msg.pc){ // check for point-click event
-            console.log(msg);
+        }else if(event.pc){ // check for point-click event
+            console.log(event);
         // if one of the preview components is toggled/edited
         }else{
-            addItems.push({id:'UI→APP message',v:JSON.stringify(msg)});
+            addItems.push({id:'UI→APP message',v:JSON.stringify(event)});
         }
-        display.Q.push({A:addItems});
+        display.Q.push({add:addItems});
     }
     app.display(display);
 }

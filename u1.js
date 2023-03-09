@@ -257,7 +257,7 @@ gui.REQUIRED={
 };
 gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'error': '!', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
 gui.TYPES={};
-gui.NO_ATTR=new Set(['!','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
+gui.NO_ATTR=new Set(['!','style','require','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
 
 gui.resetDisplay=function(){
 	document.body.innerHTML='';
@@ -1311,6 +1311,7 @@ gui.Item.prototype.R=async function(v){
 addCSS(`
 .tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999;padding:5px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
 .tooltiptext::first-line {font-weight:bold}
+.contextMenu {display:none;position:fixed;z-index:10;padding:0.5em;background-color:var(--color0);border:solid 1px gray;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;}
 `);
 gui.tooltipOn=function(e){
 	if(!gui.tooltip){
@@ -1368,6 +1369,35 @@ gui.Item.prototype.tag=function(v){
 }
 gui.Item.prototype.sx=function(v){this._frame.scrollLeft=v+'%';}
 gui.Item.prototype.sy=function(v){this._frame.scrollTop=v+'%';}
+gui.Item.prototype.ctx=function(v){
+	if(!gui._contextMenuDiv){
+		gui._contextMenuDiv=document.body.appendChild(document.createElement('div'));
+		gui._contextMenuDiv.className='contextMenu';
+		gui._contextMenuDiv.setAttribute('tabindex', '0');
+	}
+	if(v){
+		this._element.addEventListener('contextmenu',gui.contextMenu);
+	}else{
+		this._element.removeEventListener('contextmenu',gui.contextMenu);
+	}
+}
+gui.contextMenu=function(e){
+	e.preventDefault();
+	gui._contextMenuDiv.style.display='block';
+	gui._contextMenuDiv.style.left=e.clientX+1;
+	gui._contextMenuDiv.style.top=e.clientY+1;
+	gui._contextMenuDiv.innerHTML = 'hello<br><div><button>press me</button></div><button>press me</button>';
+	gui._contextMenuDiv.focus();
+	gui._contextMenuDiv.addEventListener('focusout',e=>{
+		if(!gui._contextMenuDiv.contains(e.relatedTarget)){
+			gui._contextMenuDiv.style.display='none';
+			
+		}
+	});
+	//TODO:
+	//	add bin to this div based on definition in e.currentTarget._item._param.ctx
+	//	hide context menu once anything else receives any event
+}
 //////////////////////////////////////////////////////////////////////////////
 
 
