@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230302)';
+const USERAGENT='u1js (v1.1.20230309)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -86,18 +86,7 @@ const IMPLEMENTED={
 	// file type option
 	fmt:['html','mkdn'],
 	// win modal option
-	mod:[],
-	// table header option
-	// head:[],
-	// // line/link direction
-	// dir:[],
-	// animation options (all values except 'on' implemented)
-	// '+v':[],
-	// '+v|':['step', 'min', 'max', '++', 'r' ],
-	// '+x':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
-	// '+y':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
-	// '+w':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ],
-	// '+h':[ '+', 'step', 'to', 'ti', 'te', 'ta', 'tu' ]
+	mod:[]
 }
 
 
@@ -1213,15 +1202,33 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 		onTaskConnect();
 	}
 	function connectToTaskHTTP(){
-		gui.userEvent=function(data){
-			fetch(app.location,{
-				method:'POST',
-				headers:{'Content-Type': 'application/json'},
-				body:JSON.stringify(data)
-			})
-			.then(r=>r.text())
-			.then(gui.appEventJSON);
-		};
+		if((location.params.method && location.params.method.toUpperCase()==='GET') || (app.method && app.method.toUpperCase()==='GET')){
+			// parse app.location, add event= param to search string
+			var [url,search]=app.location.split('?');
+			if(!search){
+				url+='?event='
+			}else{
+				if(search.endsWith('&'))url+=search+'event=';
+				else url+=search+'&event=';
+			}
+			// create gui.userEvent function to send event data via GET (in the search string under the event parameter)
+			gui.userEvent=function(data){
+				fetch(url+JSON.stringify(data))
+				.then(r=>r.text())
+				.then(gui.appEventJSON);
+			};
+		}else{
+			// create gui.userEvent function to send event data via POST (as a JSON body)
+			gui.userEvent=function(data){
+				fetch(app.location,{
+					method:'POST',
+					headers:{'Content-Type': 'application/json'},
+					body:JSON.stringify(data)
+				})
+				.then(r=>r.text())
+				.then(gui.appEventJSON);
+			};
+		}
 		onTaskConnect();
 	}
 	function connectToTaskWS(){
@@ -1250,11 +1257,11 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 
 //
 // above this line are:
-//   core UINL text&button features, title, & delayed update commands
+//   core UINL text&button features, caption, & delayed update commands
 //////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 // below this line are:
-//   additional UI features (e.g. checkboxes, tables, inputs, events, graphics, emphases)
+//   additional UI features (e.g. checkboxes, tables, text inputs, events, emphases)
 //
 
 
@@ -2229,579 +2236,4 @@ gui.GridRow=class extends gui.Bin{
 	}
 };
 gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
-//////////////////////////////////////////////////////////////////////////////
-
-
-//TODO: change this to only be allowed in n, plot, 2d/3d and add n component
-//////////////////////////////////////////////////////////////////////////////
-// ln (link between items)
-// addCSS(` 
-// svg {width:100%;height:100%;left:0px;top:0px;position:absolute;z-index:0}
-// [c='l']>.title {stroke:none;fill:currentColor;font-size:90%;font-family:sans-serif;}
-// `);
-// gui.arrowMarkers=0;
-// gui.arrowMarker=function(){
-// 	var m=createSVG('marker');
-// 	m.id="arr"+(gui.arrowMarkers++);
-// 	m.setAttribute('orient','auto-start-reverse');
-// 	m.setAttribute('markerUnits','strokeWidth');
-// 	m.setAttribute('viewBox','0 0 10 10');
-// 	m.setAttribute('refX','5');
-// 	m.setAttribute('refY','5');
-// 	m.setAttribute('markerWidth','5');
-// 	m.setAttribute('markerHeight','6');
-// 	m.style.fill='currentColor';
-// 	m.style.stroke='none';
-// 	var d=m.appendChild(createSVG('path'));
-// 	d.setAttribute('d',"M 0 0 L 10 5 L 0 10 z");
-// 	return m;
-// }
-// gui.L=class extends gui.Item{
-// 	_initContent(){
-// 		if(!this._parent._svg)
-// 			this._parent._svg=this._svg=this._parent._content.insertBefore(createSVG('svg'),this._parent._content.childNodes[0]);
-// 		else
-// 			this._svg=this._parent._svg;
-// 		this._path=this._svg.appendChild(createSVG('g'));
-// 		this._path.setAttribute('stroke-width','2');
-// 		this._path.setAttribute('fill','none');
-// 		this._path.style.stroke='currentColor';
-// 		this._paths=[this._path.appendChild(createSVG('path'))];
-// 		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-// 		this._parent._placeChildElement(this);
-// 		this._content=this._frame=this._element=this._path;
-// 		this._title=this._path.appendChild(createSVG('text'));
-// 		this._title.style.display='none';
-// 		this._redraw();
-// 		this._path.onmouseenter=e=>{
-// 			this._title.style.display='block';
-// 			var r=this._parent._content.getBoundingClientRect();
-// 			this._title.setAttribute('x',2+e.clientX-r.left);
-// 			this._title.setAttribute('y',2+e.clientY-r.top);
-// 		}
-// 		this._path.onmouseleave=e=>{
-// 			this._title.style.display='none';
-// 		}
-// 		this._uids=[];
-// 	}
-// 	_beforeRemove(){
-// 		this._parent._svg.removeChild(this._path);
-// 	}
-// 	_drawPaths(){	//todo: optimally this would go center to center, but stopping at border (and be same for dir:0)
-// 		var startMarker,endMarker;
-// 		if(!this._arrow)this._arrow=this._path.appendChild(gui.arrowMarker());
-// 		if(this._prop.dir==1){
-// 			endMarker="url(#"+this._arrow.id+")";
-// 		}else if(this._prop.dir==2){
-// 			startMarker="url(#"+this._arrow.id+")";
-// 			endMarker="url(#"+this._arrow.id+")";
-// 		}else if(this._prop.dir==-1){
-// 			startMarker="url(#"+this._arrow.id+")";
-// 		}
-// 		var i=0,r1,r2,d,svgr=this._svg.getBoundingClientRect();
-// 		for(var e of this._elements){
-// 			if(e._item){
-// 				if(r1){
-// 					if(!this._paths[i])
-// 						this._paths[i]=this._path.appendChild(createSVG('path'));
-// 					r2=e.getBoundingClientRect();
-// 					if(r1.right<r2.left) //r1 is left of r2
-// 						if(r1.bottom<r2.top) //r1 is above of r2
-// 							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
-// 						else if(r2.bottom<r1.top) //r2 is above of r1
-// 							d=[r1.right-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
-// 						else
-// 							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
-// 					else if(r2.right<r1.left) //r2 is left of r1
-// 						if(r1.bottom<r2.top) //r1 is above of r2
-// 							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
-// 						else if(r2.bottom<r1.top) //r2 is above of r1
-// 							d=[r1.left-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
-// 						else
-// 							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-// 					else if(r1.bottom<r2.top) //r1 is above of r2
-// 						d=[r1.left+r1.width/2-svgr.left,r1.bottom-svgr.top,r2.left+r2.width/2-svgr.left,r2.top-svgr.top];
-// 					else if(r2.bottom<r1.top) //r2 is above of r1
-// 						d=[r1.left+r1.width/2-svgr.left,r1.top-svgr.top,r2.left+r2.width/2-svgr.left,r2.bottom-svgr.top];
-// 					else if(r2.right<r1.right) //r2 is left of r1, but overlapping
-// 						if(r2.top<r1.top) //r2 is above of r1
-// 							d=[r1.right-svgr.left,r1.top-svgr.top,r2.right-svgr.left,r2.top-svgr.top];
-// 						else if(r2.bottom>r1.bottom) //r1 is above of r2
-// 							d=[r1.right-svgr.left,r1.bottom-svgr.top,r2.right-svgr.left,r2.bottom-svgr.top];
-// 						else
-// 							d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-// 					else if(r2.left>r1.left) //r2 is right of r1, but overlapping
-// 						if(r2.top<r1.top) //r1 is above of r2
-// 							d=[r1.left-svgr.left,r1.top-svgr.top,r2.left-svgr.left,r2.top-svgr.top];
-// 						else if(r2.bottom>r1.bottom) //r2 is above of r1
-// 							d=[r1.left-svgr.left,r1.bottom-svgr.top,r2.left-svgr.left,r2.bottom-svgr.top];
-// 						else
-// 							d=[r1.left-svgr.left,r1.top+r1.height/2-svgr.top,r2.left-svgr.left,r2.top+r2.height/2-svgr.top];
-// 					else
-// 						d=[r1.right-svgr.left,r1.top+r1.height/2-svgr.top,r2.right-svgr.left,r2.top+r2.height/2-svgr.top];
-// 					this._paths[i].setAttribute('d','M'+d);
-// 					this._paths[i].setAttribute('marker-start',startMarker);
-// 					this._paths[i].setAttribute('marker-end',endMarker);
-// 					r1=r2;
-// 					i++;
-// 				}else{
-// 					r1=e.getBoundingClientRect();
-// 				}
-// 			}
-// 		}
-// 		this._paths.length=i;
-// 	}
-// 	_drawPath(){
-// 		//collect elements
-// 		if(this._elements)
-// 			for(var element of this._elements)
-// 				delete element._item._moveTriggers.ln;
-// 		this._elements=[];
-// 		if(this._uids.length){
-// 			for(var uid of this._uids){
-// 				var item=this._parent._searchId(uid);
-// 				if(item)this._elements.push(item._element);
-// 			}
-// 		}else if(this._prop.tag){
-// 			for(var element of this._parent._content.children)
-// 				if(element._item && element._item!==this)
-// 					for(var tag of this._prop.tag)
-// 						if(element._item._prop.tag&&element._item._prop.tag.includes(tag))
-// 							this._elements.push(element);
-// 		}else{
-// 			for(var element of this._parent._content.children)
-// 				if(element._item && element._item!==this)
-// 					this._elements.push(element);
-// 		}
-// 		for(var element of this._elements)
-// 			element._item._moveTriggers.ln=()=>{this._redraw()};
-// 		//connect elements
-// 		if(this._prop.dir){
-// 			this._drawPaths();
-// 		}else{
-// 			if(this._paths.length){
-// 				for(var i=1;i<this._paths.length;i++)
-// 					this._paths[i].remove();
-// 				this._paths.length=1;
-// 			}else{
-// 				this._paths[0]=this._path.appendChild(createSVG('path'));
-// 			}
-// 			var r,svgr=this._svg.getBoundingClientRect(),d='M';
-// 			for(var e of this._elements){
-// 				r=e.getBoundingClientRect();
-// 				d+=(r.left+r.width/2-svgr.left)+','+(r.top+r.height/2-svgr.top)+' ';
-// 			}
-// 			this._paths[0].setAttribute('d',d);
-// 			this._paths[0].removeAttribute('marker-start');
-// 			this._paths[0].removeAttribute('marker-end');
-// 		}
-// 	}
-// 	_redraw(){
-// 		if(!this._drawing)
-// 			this._drawing=setTimeout(()=>{this._drawPath();this._drawing=null;},15);
-// 	}
-// 	_updateInternalWidth(v){this._redraw()};
-// 	_updateInternalHeight(v){this._redraw()};
-// 	v(v){
-// 		if(v.constructor===Array){
-// 			if(v[0]===null)this._uids=[];
-// 			for(var uid of v){
-// 				if(uid!==null)
-// 					this._uids.push(uid);
-// 			}
-// 		}else{
-// 			this._uids=[];
-// 		}
-// 		this._redraw();
-// 	}
-// 	tag(v){
-// 		this._element.classList.remove(...this._element.classList);
-// 		this._element.classList.add('content','frame');
-// 		if(v && v.length){
-// 			for(var tag of v){
-// 				if(tag!==null)
-// 					this._element.classList.add(tag.constructor===String?tag:('tag'+tag));
-// 			}
-// 		}
-// 		this._redraw();
-// 	}
-// 	dir(v){this._redraw();}
-// }
-// gui.L.prototype._classDefaults={c:'l',v:[]};
-// gui.L.prototype.shp=null;
-// gui.L.prototype.opq=null;
-// gui.L.prototype.w=null;
-// gui.L.prototype.h=null;
-// gui.L.prototype.iw=null;
-// gui.L.prototype.ih=null;
-// gui.L.prototype.x=null;
-// gui.L.prototype.y=null;
-// gui.L.prototype.rot=null;
-//////////////////////////////////////////////////////////////////////////////
-
-/* Plot
-//////////////////////////////////////////////////////////////////////////////
-// axisX & axisY
-addCSS(`
-[axisx] {margin-bottom:2.5em;overflow:visible}
-.axisX {height:2.5em;border:none;left:0px;top:100%;width:100%;position:absolute;margin:0px;overflow:visible;border-top:solid 1px gray}
-.axisXmarker {position:absolute;font-size:10px;top:3px;margin:0px;border:none;padding:0px;min-width:10px;min-height:10px}
-.axisXmarker[style~="left:"] {transform:translateX(-50%)}
-.axisXmarker[style~="right:"] {transform:translateX(50%)}
-.axisXmarker:before {content:'';width:1px;height:7px;background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
-.axisX > .title {text-align:center;position:relative;margin-top:1em;width:100%;font-size:10pt}
-[axisy] {margin-left:4em;margin-top:1em;overflow:visible}
-.axisY {border:none;right:100%;top:0;height:100%;position:absolute;overflow:visible;width:1.1em;margin:0px;border-right:solid 1px gray}
-.axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px;min-height:10px}
-.axisYmarker[style~="top:"] {transform:translateY(-50%)}
-.axisYmarker[style~="bottom:"] {transform:translateY(50%)}
-.axisYmarker:after {content:'';height:1px;width:7px;background:#444;position:absolute;right:-8px;top:50%;margin:0px;border:none;padding:0px;margin-top:-0.5px}
-.axisY > .title {right:100%;text-align:center;height:100%;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10pt}
-`);
-gui.scrollAxisX=function(e){this._item._axisX.scrollLeft=this.scrollLeft;};
-gui.scrollAxisY=function(e){this._item._axisY.scrollTop=this.scrollTop;};
-gui.Plot.prototype._getAxisValuesOffsets=function(axis,cw,w){
-	var offset=axis.x||axis.y;
-	var axisSize=Math.max(cw,w);
-	if(axis.tag && !axis.v){
-		axis.v=axis.tag.map(()=>'');
-	}
-	if(axis.v){
-		if(offset){												//yes values, yes offset
-			return [axis.v,offset];
-		}else{													//yes values, no offset
-			offset=[];
-			for(var i=0;i<axis.v.length;i++)
-				offset[i]=i*axisSize/(axis.v.length-1);
-			return [axis.v,offset];
-		}
-	}
-	var values=[];
-	if(('min' in axis) && ('max' in axis) && (axis.min<axis.max)){
-		var range=axis.max-axis.min;
-		if(offset){												//no values, yes offset, yes min/max
-			for(var i=0;i<offset.length;i++){
-				values[i]=axis.min+(range*offset[i]/axisSize);
-			}
-		}else{													//no values, no offset, yes min/max
-			offset=[];
-			for(var val=axis.min;val<=axis.max;val+=(axis.step||(range/10))){
-				values.push(val);
-				offset.push((val-axis.min)*axisSize/range);
-			}
-		}
-	}else if(offset){											//no values, yes offset, no min/max
-		for(var i=0;i<offset.length;i++){
-			values[i]=offset[i];
-		}
-	}else{														//no values, no offset, no min/max
-		offset=[];
-		for(var val=0;val<axisSize;val+=(axis.step||((w||cw)/10))){
-			values.push(val);
-			offset.push(val);
-		}
-	}
-	if(!offset.includes(axisSize)){
-		values.push('');
-		offset.push(axisSize);
-	}
-	return [values,offset];
-}
-gui.Plot.prototype._drawAxisX=function(){
-	//remove old markers
-	for(var i=this._axisX.children.length;i--;){
-		if(this._axisX.children[i].className==='axisXmarker')
-			this._axisX.children[i].remove();
-	}
-	//automatically fill in missing coordinates or values
-	var axisProps=this._prop.axisx;
-	var axis=this._getAxisValuesOffsets(axisProps,this._rectcw(),this._prop.iw||this._prop.w||0);
-	//add new markers
-	for(var i=0;i<axis[0].length;i++){
-		var d=this._axisX.appendChild(document.createElement('div'));
-		d.classList.add('axisXmarker');
-		if(axisProps.tag && axisProps.tag[i]){
-			d.classList.add(...axisProps.tag[i]);
-		}
-		if(axis[0][i].constructor===String)d.innerHTML=axis[0][i];
-		else d.innerHTML=(gui.TYPES[axisProps.c]||gui.Num).prototype._display(axis[0][i],axisProps.step||undefined,axisProps.min||0);
-		d.setAttribute('title',d.innerHTML);
-		if(axisProps.bb===1)d.style.right=this._getSize(axis[1][i],this._getPw());
-		else d.style.left=this._getSize(axis[1][i],this._getPw());
-	}
-	//scroll functionality
-	if(this._scrollAxisX){
-		if(this._frame.offsetWidth>=this._frame.scrollWidth){
-			this._scrollAxisX=false;
-			this._axisX.style.overflow='visible';
-			this._frame.removeEventListener('scroll',gui.scrollAxisX);
-		}
-	}else if(this._frame.offsetWidth<this._frame.scrollWidth){
-		this._scrollAxisX=true;
-		this._axisX.style.overflow='hidden';
-		this._frame.addEventListener('scroll',gui.scrollAxisX);
-	}
-}
-gui.Plot.prototype._drawAxisY=function(){
-	//remove old markers
-	for(var i=this._axisY.children.length;i--;){
-		if(this._axisY.children[i].className==='axisYmarker')
-			this._axisY.children[i].remove();
-	}
-	//automatically fill in missing coordinates or values
-	var axisProps=this._prop.axisy;
-	var axis=this._getAxisValuesOffsets(axisProps,this._rectch(),this._prop.ih||this._prop.h||0);
-	//add new markers
-	for(var i=0;i<axis[0].length;i++){
-		var d=this._axisY.appendChild(document.createElement('div'));
-		d.classList.add('axisYmarker');
-		if(axisProps.tag && axisProps.tag[i]){
-			d.classList.add(...axisProps.tag[i]);
-		}
-		if(axis[0][i].constructor===String)d.innerHTML=axis[0][i];
-		else d.innerHTML=(gui.TYPES[axisProps.c]||gui.Num).prototype._display(axis[0][i],axisProps.step||undefined,axisProps.min||0);
-		d.setAttribute('title',d.innerHTML);
-		if(axisProps.bb===0)d.style.top=this._getSize(axis[1][i],this._getPh());
-		else d.style.bottom=this._getSize(axis[1][i],this._getPh());
-	}
-	//scroll functionality
-	if(this._scrollAxisY){
-		if(this._frame.offsetHeight>=this._frame.scrollHeight){
-			this._scrollAxisY=false;
-			this._axisY.style.overflow='visible';
-			this._frame.removeEventListener('scroll',gui.scrollAxisY);
-		}
-	}else if(this._frame.offsetHeight<this._frame.scrollHeight){
-		this._scrollAxisY=true;
-		this._axisY.style.overflow='hidden';
-		this._frame.addEventListener('scroll',gui.scrollAxisY);
-	}
-}
-gui.Plot.prototype.axisx=function(v){
-	if(v===null && this._axisX){
-		this._axisX.remove();
-		delete this._axisX;
-		// delete this._moveTriggers.axisx;
-	}else if(v && v.constructor===Object){
-		if(!this._axisX){
-			this._axisX=this._element.appendChild(document.createElement('div'));
-			this._axisX.setAttribute('class','axisX');
-		}
-		if(('cap' in v) || ('unit' in v)){
-			var title=v.cap||'';
-			if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
-			if(title){
-				if(!this._axisX._title){
-					this._axisX._title=this._axisX.appendChild(document.createElement('div'));
-					this._axisX._title.setAttribute('class','title');
-				}
-				this._axisX._title.innerHTML=title;
-			}else if(this._axisX._title){
-				this._axisX._title.remove();
-			}
-		}
-		if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v)
-			setTimeout(()=>this._drawAxisX(),5);
-		// this._moveTriggers.axisx=()=>{this._drawAxisX()};
-	}
-}
-gui.Plot.prototype.axisy=function(v){
-	if(v===null && this._axisY){
-		this._axisY.remove();
-		delete this._axisY;
-		// delete this._moveTriggers.axisy;
-	}else if(v && v.constructor===Object){
-		if(!this._axisY){
-			this._axisY=this._element.appendChild(document.createElement('div'));
-			this._axisY.setAttribute('class','axisY');
-		}
-		if(('cap' in v) || ('unit' in v)){
-			var title=v.cap||'';
-			if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
-			if(title){
-				if(!this._axisY._title){
-					this._axisY._title=this._axisY.appendChild(document.createElement('div'));
-					this._axisY._title.setAttribute('class','title');
-				}
-				this._axisY._title.innerHTML=title;
-			}else if(this._axisY._title){
-				this._axisY._title.remove();
-			}
-		}
-		if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v)
-			setTimeout(()=>this._drawAxisY(),5);
-		// this._moveTriggers.axisy=()=>{this._drawAxisY()};
-	}
-}
-//////////////////////////////////////////////////////////////////////////////
-*/
-
-// TODO: animation changes
-//////////////////////////////////////////////////////////////////////////////
-// animation
-// gui.removeAnimation=function(animation){
-// 	gui.animations.delete(animation);
-// 	animation._item._prop['+'+animation._propName].ti="";
-// }
-// function getAccelerationFromDeltaVelocity(v_i,v_f,x_i,x_f){
-// 	return 0.5*(v_f-v_i)*(v_f+v_i)/Math.abs(x_f-x_i);
-// }
-// gui.setAcceleration=function(animation){
-// 	if(animation.ta){
-// 		animation._ta=animation.ta[animation.ti % animation.ta.length];
-// 		if(animation._ta.constructor===String){
-// 			animation._ta=getAccelerationFromDeltaVelocity(
-// 				animation['+'], parseFloat(animation._ta)||0,
-// 				animation._item._prop[animation._propName]||0, //animation._curval,
-// 				animation._to
-// 			);
-// 			if(Math.abs(animation._ta)<1e-9)animation._ta=0;
-// 		}
-// 	}
-// }
-// gui.animationTargetDone=function(animation,curval){
-// 	//if there is no speed/acceleration left in this animation, remove it
-// 	if(!animation['+'] && !animation.ta.some(a=>parseFloat(a)>0)){
-// 		gui.removeAnimation(animation);
-// 		return;
-// 	}
-// 	//move onto next target, and if there is more targets...
-// 	if(++animation.ti < (animation.to.length*(animation.tu+1))){
-// 		animation._to=animation.to[animation.ti % animation.to.length]; //keep index within specified target array
-// 		gui.setAcceleration(animation);									//get next acceleration
-// 		if(animation.te && animation.te.length){						//change to next exit-velocity (as proportion of current velocity)
-// 			let te=animation.te[(animation.ti-1) % animation.te.length];
-// 			if(te.constructor===String){
-// 				animation['+']*=parseFloat(te);
-// 			}else if(te.constructor===Number){
-// 				animation['+']=te;
-// 			}
-// 		}else{															//default behavior -- bounce off toward next goal
-// 			if((animation._to>curval && animation['+']<0) ||
-// 				(animation._to<curval && animation['+']>0))
-// 					animation['+']*=-1;
-// 		}
-// 	}else{	//if this is last target, stop animation
-// 		gui.removeAnimation(animation);
-// 	}
-// }
-// gui.animate=function(timeStep,animation){   //TODO: optimization: make this Item._animate (that way animation._item gets replaced with this for fewer lookups)
-// 	if(animation._item._exists() &&
-// 			animation._item._prop[animation._aniprop] &&
-// 			animation.ti.constructor===Number){
-// 		var curval=animation._curval,
-// 			goal=animation._to;
-// 		//check target attraction
-// 		if(goal!==undefined && animation._ta){
-// 			var acceleration=animation._ta*timeStep;
-// 			if(acceleration<0){ //resistence
-// 				if(animation['+']>0){
-// 					animation['+']+=acceleration;
-// 					if(animation['+']<=0){  //if velocity reaches/passes zero, move onto next target
-// 						animation['+']=0;
-// 						gui.animationTargetDone(animation,curval);
-// 					}
-// 				}else if(animation['+']<0){
-// 					animation['+']-=acceleration;
-// 					if(animation['+']>=0){  //if velocity reaches/passes zero, move onto next target
-// 						animation['+']=0;
-// 						gui.animationTargetDone(animation,curval);
-// 					}
-// 				}
-// 			}else{  //accelerate toward target
-// 				if(curval<goal)animation['+']+=acceleration;
-// 				else if(curval>goal)animation['+']-=acceleration;
-// 			}
-// 		}
-// 		//increment property value according to its velocity
-// 		if(animation['+']){
-// 			var newval=curval+animation['+']*timeStep;
-// 			if(goal!==undefined && (curval<goal&&newval>=goal)||(curval>goal&&newval<=goal)){ //if target value was reached, animate to next target or stop
-// 				newval=goal;
-// 				gui.animationTargetDone(animation,newval);
-// 			}
-// 			//refresh animated property on display
-// 			animation._curval=newval;
-// 			if(animation.step){
-// 				if(Math.abs(animation._item._prop[animation._propName]-newval)>=animation.step){
-// 					animation._item._prop[animation._propName]=animation._item._prop[animation._propName]=newval;
-// 					animation._item[animation._propName](newval);
-// 				}
-// 			}else{
-// 				animation._item._prop[animation._propName]=animation._item._prop[animation._propName]=newval;
-// 				animation._item[animation._propName](newval);
-// 			}
-// 		}
-// 	}else{
-// 		gui.animations.delete(animation);
-// 	}
-// }
-// gui.startAnimation=function(animation,item,propName){
-// 	if(animation){
-// 		//add references to this animation object and other hidden animation properties
-// 		hiddenProp(animation,'_item',item);
-// 		hiddenProp(animation,'_propName',propName);
-// 		hiddenProp(animation,'_aniprop','+'+propName);
-// 		hiddenProp(animation,'_curval',item._prop[propName]||0);
-// 		hiddenProp(animation,'_to');
-// 		hiddenProp(animation,'_te');
-// 		hiddenProp(animation,'_ta');
-// 		//defaults
-// 		if(!animation['+'])animation['+']=0;
-// 		if(!animation.tu)animation.tu=0;
-// 		if(animation.te===undefined)animation.te=null;
-// 		if(!animation.step)animation.step=item._prop.step;
-// 		else if(animation.step<0)animation.step*=-1;
-// 		//init target index
-// 		if(animation.ti===undefined)animation.ti=0;
-// 		//turn "to" into array or null
-// 		if(animation.to===undefined){
-// 			animation.to=null;
-// 		}else if(animation.to!==null){
-// 			if(animation.to.constructor!==Array)
-// 				animation.to=[animation.to];
-// 			animation._to=animation.to[animation.ti % animation.to.length];
-// 		}
-// 		//turn "ta" into array or null
-// 		if(animation.ta===undefined){
-// 			animation.ta=null;
-// 		}else if(animation.ta!==null){
-// 			if(animation.ta.constructor!==Array)
-// 				animation.ta=[animation.ta];
-// 			gui.setAcceleration(animation);
-// 		}
-// 		//turn "te" into array or null
-// 		if(animation.te===undefined){
-// 			animation.te=null;
-// 		}else if(animation.te!==null){
-// 			if(animation.te.constructor!==Array)
-// 				animation.te=[animation.te];
-// 			animation._te=animation.te[animation.ti % animation.te.length];
-// 		}
-// 		//start animation
-// 		if(animation['+'] || // if there velocity or acceleration
-// 			 (animation.to && animation.ta &&
-// 				animation.ta.some(a=>parseFloat(a)>0))){
-// 			gui.animations.add(animation);
-// 			return true;
-// 		}
-// 	}
-// }
-// gui.Num.prototype['+v']=function(v){gui.startAnimation(this._prop['+v'],this,'v')}
-// gui.Item.prototype['+x']=function(v){
-// 	if(gui.startAnimation(this._prop['+x'],this,'x'))
-// 		this._setAttr('x','');
-// }
-// gui.Item.prototype['+y']=function(v){
-// 	if(gui.startAnimation(this._prop['+y'],this,'y'))
-// 		this._setAttr('y','');
-// }
-// gui.Item.prototype['+w']=function(v){
-// 	if(gui.startAnimation(this._prop['+w'],this,'w'))
-// 		this._setAttr('w','');
-// }
-// gui.Item.prototype['+h']=function(v){
-// 	if(gui.startAnimation(this._prop['+h'],this,'h'))
-// 		this._setAttr('h','');
-// }
 //////////////////////////////////////////////////////////////////////////////

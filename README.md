@@ -19,7 +19,7 @@ Is u1js just for client-side applications?
 
 
 
-### Hello World example:
+### Hello World example with client-side JavaScript application code:
 
         <html><head><script src="https://cdn.jsdelivr.net/gh/uinl/u1js/u1.min.js"></script><script>
             function userEvent(event){
