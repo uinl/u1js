@@ -30,6 +30,8 @@ const IMPLEMENTED={
 	'!':[],
 	// open link
 	open:[],
+	// save file
+	save:[],
 	// load stylesheet
 	style:[],
 	// templates
@@ -916,6 +918,21 @@ gui.Root=class extends gui._Container{
 	}
 	style(v){load(v);}
 	open(v){window.open(v);}
+	save(v){
+		if(v.constructor===Array && v.length===2){
+			var file = new Blob([v[1]], {type: 'text/plain'});
+			var a = document.createElement("a"),
+					url = URL.createObjectURL(file);
+			a.href = url;
+			a.download = v[0];
+			document.body.appendChild(a);
+			a.click();
+			setTimeout(function() {
+				document.body.removeChild(a);
+				window.URL.revokeObjectURL(url);  
+			}, 0); 
+		}
+	}
 	cap(v){document.title=(v===null||v===undefined)?'':v;}
 };
 gui.Root.prototype._classDefaults={c:'bin',v:[]};
