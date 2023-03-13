@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230309)';
+const USERAGENT='u1js (v1.1.20230312)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -437,7 +437,7 @@ addCSS(`
 --colorTrue: lightblue;
 --colorLink: #0066ff;
 }
-* {scrollbar-width:thin;box-sizing:border-box}
+* {scrollbar-width:thin;box-sizing:border-box;z-index:1}
 scrollbar {width:5px;height:5px;}
 a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar {width:5px;height:5px;}
@@ -457,7 +457,7 @@ input , textarea {font-family:consolas, monospace;color:var(--color1)}
 [c] {overflow:visible}
 *:focus {outline: 0px solid transparent;box-shadow:0px 0px 5px 2px var(--colorTrue) !important;}
 `);
-gui.Item=class{
+gui._Item=class{
 	constructor(prop,parent){
 		this._parent=parent;																//pointer to parent
 		this._initContent();
@@ -471,9 +471,10 @@ gui.Item=class{
 		this._content._item=this._title._item=this._frame._item=this._element._item=this._outerElement._item=this;
 		this._level=parent._level+1;
 		this._setAttr('level',this._level);
-		this._prop={c:this._classDefaults.c};
-		this._setAttr('c',this._classDefaults.c)
-		// this._id(prop.id);
+		if(this._classDefaults){
+			this._prop={c:this._classDefaults.c};
+			this._setAttr('c',this._classDefaults.c)
+		}
 		this._initDefaults(prop);
 		this._update(prop);							//refresh attributes based on own properties and class defaults
 	}
@@ -703,13 +704,13 @@ gui.Item=class{
 		}
 	}
 }
-gui.Item.prototype['!']=function(v){console.error(this._prop,v);};
+gui._Item.prototype['!']=function(v){console.error(this._prop,v);};
 //////////////////////////////////////////////////////////////////////////////
 
 
 //////////////////////////////////////////////////////////////////////////////
-// prototypical gui container
-gui._Container=class extends gui.Item{
+// prototypical gui containers
+gui._Container=class extends gui._Item{
 	_initContent(){
 		this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
 		this._title=this._element.appendChild(document.createElement('div'));			//title (this is where id/title goes)
@@ -860,6 +861,15 @@ gui._Container=class extends gui.Item{
 	}
 	df(){}
 }
+gui._ContainerWithNoParent=class extends gui._Container{
+	_initDefaults(prop){
+		this._prop.df={};
+		this._children=[];
+		this._childmap={};
+		this._parent=null;
+		this._prop.id=null;
+	}
+}
 //////////////////////////////////////////////////////////////////////////////
 
 //////////////////////////////////////////////////////////////////////////////
@@ -878,17 +888,8 @@ gui.Bin.prototype._classDefaults={c:'bin',v:[]};
 
 //////////////////////////////////////////////////////////////////////////////
 // root
-gui.Root=class extends gui._Container{
+gui.Root=class extends gui._ContainerWithNoParent{
 	_sendMsg(msg){gui.sendUserEvent(msg)}
-	_initDefaults(prop){
-		this._prop.df={};
-		this._children=[];
-		this._childmap={};
-		this._parent=null;
-		this._prop.id=null;
-		this._pw=1;
-		this._ph=1;
-	}
 	_update(prop){
 		if('Tc' in prop){gui.cancelScheduledEvents(prop.Tc)};
 		if(prop.T){				//delay current update until a specific time
@@ -958,7 +959,7 @@ function autoHeight(element){
 		}
 	}
 }
-gui.Txt=class extends gui.Item{
+gui.Txt=class extends gui._Item{
 	v(v){
 		if(this._prop.in && this._prop.in>0){
 			if(v==='\n')v='';
@@ -1026,7 +1027,7 @@ input:not([disabled]) {border:solid 1px lightgray}
 
 [c='num'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:text-bottom}
 `);
-gui.Num=class extends gui.Item{
+gui.Num=class extends gui._Item{
 	// _initContent(){
 	// 	this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
 	// 	this._frame=this._element;
@@ -1052,8 +1053,10 @@ gui.Num=class extends gui.Item{
 				c._item._adjustWidth(c.value.length);
 			}
 			c.onchange=function(){
-				c._item._updateProp('v',c.value);
-				c._item._sendMsg({v:c._item._prop.v});
+				try{
+					c._item._updateProp('v',parseFloat(c.value));
+					c._item._sendMsg({v:c._item._prop.v});
+				}catch(e){}
 			};
 		}else{
 			this._content.remove();
@@ -1114,7 +1117,7 @@ addCSS(`
 [btnContainer]:not(tr) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);cursor:pointer;border-radius:4px;}
 [v="true"]:not([c='txt']) {background-color:var(--colorTrue) !important;}
 `);
-gui.Btn=class extends gui.Item{
+gui.Btn=class extends gui._Item{
 	_initContent(){
 		this._element=document.createElement('div');			//make element inside parent
 		this._setAttr('tabindex',0);
@@ -1144,7 +1147,7 @@ gui.Btn=class extends gui.Item{
 	}
 	A(v){this.v(!this._prop.v);}
 	_btnDown(){this._setAttr('v',true);}
-	_btnUp(){this._setAttr('v',false);this._boundTo._element.onclick();}
+	_btnUp(){this._setAttr('v',false);this._boundTo._element.dispatchEvent(new Event('click'));}
 	_bind(item){
 		var thisItem=this;
 		this._boundTo=item;
@@ -1286,12 +1289,12 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 // TODO: rectx recty should be returning position on page, not within viewport
 //////////////////////////////////////////////////////////////////////////////
 // R command (polling / property info request)
-gui.Item.prototype._rectx=function(){return (this._element.getBoundingClientRect().x-this._parent._content.getBoundingClientRect().x)};
-gui.Item.prototype._recty=function(){return (this._element.getBoundingClientRect().y-this._parent._content.getBoundingClientRect().y)};
-gui.Item.prototype._rectw=function(){return this._element.offsetWidth};
-gui.Item.prototype._recth=function(){return this._element.offsetHeight};
-gui.Item.prototype._rectcw=function(){return this._content.getBoundingClientRect().width};
-gui.Item.prototype._rectch=function(){return this._content.getBoundingClientRect().height};
+gui._Item.prototype._rectx=function(){return (this._element.getBoundingClientRect().x-this._parent._content.getBoundingClientRect().x)};
+gui._Item.prototype._recty=function(){return (this._element.getBoundingClientRect().y-this._parent._content.getBoundingClientRect().y)};
+gui._Item.prototype._rectw=function(){return this._element.offsetWidth};
+gui._Item.prototype._recth=function(){return this._element.offsetHeight};
+gui._Item.prototype._rectcw=function(){return this._content.getBoundingClientRect().width};
+gui._Item.prototype._rectch=function(){return this._content.getBoundingClientRect().height};
 
 gui.INFO={
 	v(item){
@@ -1317,7 +1320,7 @@ gui.INFO={
 	wh(item){return [item._rectw(),item._recth()]},
 	whc(item){return [item._rectcw(),item._rectch()]}
 }
-gui.Item.prototype.R=async function(v){
+gui._Item.prototype.R=async function(v){
 	var r={};
 	for(var info of v){
 		if(info in gui.INFO)r[info]=await gui.INFO[info](this);
@@ -1335,7 +1338,7 @@ gui.Item.prototype.R=async function(v){
 addCSS(`
 .tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999;padding:5px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
 .tooltiptext::first-line {font-weight:bold}
-.contextMenu {display:none;position:fixed;z-index:10;padding:0.5em;background-color:var(--color0);border:solid 1px gray;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;}
+.contextMenu {display:none;position:fixed;z-index:10;width:auto !important;height:auto !important;padding:0.5em !important;background-color:var(--color0);border:solid 1px gray;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;}
 `);
 gui.tooltipOn=function(e){
 	if(!gui.tooltip){
@@ -1346,7 +1349,7 @@ gui.tooltipOn=function(e){
 	gui.tooltip.style.visibility='visible';
 };
 gui.tooltipOff=function(e){gui.tooltip.style.visibility='hidden';};
-gui.Item.prototype.i=function(v){
+gui._Item.prototype.i=function(v){
 	var parent=this._parent;
 	if(parent && parent._children[v]!==this){
 		var myindx=parent._children.indexOf(this);
@@ -1361,7 +1364,7 @@ gui.Item.prototype.i=function(v){
 		}
 	}
 };
-gui.Item.prototype.tip=function(v){
+gui._Item.prototype.tip=function(v){
 	this._content.setAttribute('title',v);
 	if(v){
 		this._element.addEventListener('mouseenter',gui.tooltipOn);
@@ -1371,7 +1374,7 @@ gui.Item.prototype.tip=function(v){
 		this._element.removeEventListener(gui.tooltipOff);
 	}
 }
-gui.Item.prototype.ef=function(v){
+gui._Item.prototype.ef=function(v){
 	this.style.borderWidth=(1+v/2)+'px';
 	this.style.strokeWidth=(1+v/2)+'px';
 	this.style.fontWeight=(400+v*300);
@@ -1379,7 +1382,7 @@ gui.Item.prototype.ef=function(v){
 // gui.Item.prototype.af=function(v){
 // 	this.style.backgroundColor=; ? red v blue? thumb up/dn icons?
 // }
-gui.Item.prototype.tag=function(v){
+gui._Item.prototype.tag=function(v){
 	this._element.className='';
 	if(this._element===this._content)this._element.classList.add('content');
 	if(this._element===this._frame)this._element.classList.add('frame');
@@ -1391,36 +1394,38 @@ gui.Item.prototype.tag=function(v){
 		}
 	}
 }
-gui.Item.prototype.sx=function(v){this._frame.scrollLeft=v+'%';}
-gui.Item.prototype.sy=function(v){this._frame.scrollTop=v+'%';}
-gui.Item.prototype.ctx=function(v){
-	if(!gui._contextMenuDiv){
-		gui._contextMenuDiv=document.body.appendChild(document.createElement('div'));
-		gui._contextMenuDiv.className='contextMenu';
-		gui._contextMenuDiv.setAttribute('tabindex', '0');
-	}
+gui._Item.prototype.sx=function(v){this._frame.scrollLeft=v+'%';}
+gui._Item.prototype.sy=function(v){this._frame.scrollTop=v+'%';}
+
+gui.Ctx=class extends gui._ContainerWithNoParent{};
+gui.Ctx.prototype._classDefaults={c:'ctx',v:[]};
+gui._Item.prototype.ctx=function(v){
+	// remove old context menu bin
+	if(this._contextMenuItem)
+		this._contextMenuItem._element.remove();
 	if(v){
-		this._element.addEventListener('contextmenu',gui.contextMenu);
-	}else{
-		this._element.removeEventListener('contextmenu',gui.contextMenu);
+		// create new context menu bin
+		this._contextMenuItem=new gui.Ctx(v,document.body);
+		var ctxDiv=this._contextMenuItem._element;
+		// add context menu style and functionality
+		ctxDiv.className='contextMenu';
+		ctxDiv.setAttribute('tabindex', '0');
+		//TODO: for btn/opt, use click/mousedown/mouseup events
+		this._element.addEventListener('contextmenu',e=>{
+			e.preventDefault();
+			ctxDiv.style.display='block';
+			ctxDiv.style.left=e.clientX+1;
+			ctxDiv.style.top=e.clientY+1;
+			ctxDiv.focus();
+			function hideContextMenu(e){
+				if(!ctxDiv.contains(e.relatedTarget)){
+					ctxDiv.style.display='none';
+					ctxDiv.removeEventListener('focusout',hideContextMenu);
+				}
+			}
+			ctxDiv.addEventListener('focusout',hideContextMenu);
+		});
 	}
-}
-gui.contextMenu=function(e){
-	e.preventDefault();
-	gui._contextMenuDiv.style.display='block';
-	gui._contextMenuDiv.style.left=e.clientX+1;
-	gui._contextMenuDiv.style.top=e.clientY+1;
-	gui._contextMenuDiv.innerHTML = 'hello<br><div><button>press me</button></div><button>press me</button>';
-	gui._contextMenuDiv.focus();
-	gui._contextMenuDiv.addEventListener('focusout',e=>{
-		if(!gui._contextMenuDiv.contains(e.relatedTarget)){
-			gui._contextMenuDiv.style.display='none';
-			
-		}
-	});
-	//TODO:
-	//	add bin to this div based on definition in e.currentTarget._item._param.ctx
-	//	hide context menu once anything else receives any event
 }
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1460,7 +1465,7 @@ gui.Bin.prototype.in=function(v){
 	}
 }
 //forced focus---------------
-gui.Item.prototype.fcs=function(v){
+gui._Item.prototype.fcs=function(v){
 	if(this._prop.in>0){
 		if(v)this._content.focus();
 		else this._content.blur();
@@ -1521,7 +1526,7 @@ gui.checkSy=function(){
 	}
 }
 //loop events checking wh, xy, and whc----------------
-gui.Item.prototype._checkProp=function(propName){
+gui._Item.prototype._checkProp=function(propName){
 	var vals=gui.INFO[propName](this);
 	// if either first or second value (widht, height or x, y) has changed, fire event
 	if(!this._propOld[propName] || vals[0]!==this._propOld[propName][0] || vals[1]!==this._propOld[propName][1]){
@@ -1550,7 +1555,7 @@ gui.EVENTS={
 	k:{"keydown":function(e){if(!e.repeat)this._item._event('k',e.key)}},
 	ku:{"keyup":function(e){if(!e.repeat)this._item._event('ku',e.key)}},
 };
-gui.Item.prototype._event=function(key,val,ignoreFilter){
+gui._Item.prototype._event=function(key,val,ignoreFilter){
 	var filter=this._prop.on[key];
 	if(ignoreFilter 
 		|| !filter.length
@@ -1558,7 +1563,7 @@ gui.Item.prototype._event=function(key,val,ignoreFilter){
 		|| ((key==='md' || key==='mu') && filter.includes(val[0]))
 	)this._sendMsg({[key]:val});
 }
-gui.Item.prototype.on=function(v){
+gui._Item.prototype.on=function(v){
 	if(!v){
 		v={};
 		for(var e in this._on){
@@ -1678,7 +1683,7 @@ gui.Btn.prototype.in=function(v){
 
 //////////////////////////////////////////////////////////////////////////////
 // hot keys
-gui.Item.prototype.keys=function(v){
+gui._Item.prototype.keys=function(v){
 	if(v==null || v.length==0){
 		for(var k of this._prop.keys)
 			if(gui.keys[k]==this)
@@ -1900,8 +1905,8 @@ addCSS(`
 [c='hold'][in]:empty {width:2em;height:2em;border-radius:2em;}
 `)
 gui.Hold=class extends gui.Btn{
-	_btnDown(){this._boundTo._element.onmousedown();}
-	_btnUp(){this._boundTo._element.onmouseup();}
+	_btnDown(){this._boundTo._element.dispatchEvent(new Event('mousedown'));}
+	_btnUp(){this._boundTo._element.dispatchEvent(new Event('mouseup'));}
 	_bind(item){
 		var thisItem=this;
 		this._boundTo=item;
