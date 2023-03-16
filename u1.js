@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230312)';
+const USERAGENT='u1js (v1.1.20230316)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -58,6 +58,8 @@ const IMPLEMENTED={
 	ef:[],
 	tip:[],
 	sx:[], sy:[],
+	// context menu
+	ctx:[], ctxdf:[],
 	// interactive options
 	in:[],
 	keys:[],
@@ -435,25 +437,41 @@ addCSS(`
 --colorFalse: #f8f8f8;
 --colorFalseHover: #f0f0f0;
 --colorTrue: lightblue;
---colorLink: #0066ff;
+--colorInput: white;
+--colorInputText: #444;
+--colorLink: #06f;
 }
-* {scrollbar-width:thin;box-sizing:border-box;z-index:1}
+@media (prefers-color-scheme: dark) {
+	:root {
+		--color0: #222;
+		--color1: #ccc;
+		--colorHead: #245;
+		--colorBorder: #333;
+		--colorFalse: #444;
+		--colorFalseHover: #555;
+		--colorTrue: #224058;
+		--colorInput: #eee;
+		--colorInputText: #000;
+		--colorLink: #06d;
+	}
+}
+* {scrollbar-width:thin;box-sizing:border-box;z-index:1;}
 scrollbar {width:5px;height:5px;}
 a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar {width:5px;height:5px;}
 ::-webkit-scrollbar-thumb {background: rgba(90,90,90,0.3);}
 ::-webkit-scrollbar-track {background: rgba(0,0,0,0.1);}
-body {background-color:var(--color0);color:var(--color1);font-size:18pt;overflow:overlay} 
+body {background-color:var(--color0);color:var(--color1);font-size:18pt;overflow:overlay;font-family: trebuchet ms, open sans, lato, montserrat, sans-serif}
 [level="0"] , [level="0"]>* {margin:0px !important;padding:0px !important;width:100% !important;height:100% !important}
 div {position:relative}
-[c] {border-width:0px;border-style:solid;border-color:#444;stroke:var(--color1);fill:none;overflow:visible;z-index:1;margin:3px;margin-left:6px; margin-top:0.5em; min-width:1em;min-height:1em;}
+[c] {border-width:0px;border-style:solid;border-color:var(--colorBorder);stroke:var(--color1);fill:none;overflow:visible;z-index:1;margin:3px;margin-left:6px; margin-top:0.5em; min-width:1em;min-height:1em;}
 [c][level="1"] {margin-left:1px}
 .title:not(:empty):not(td) {white-space:nowrap;overflow:visible;user-select:none}
 .title:empty {margin:0px}
 .subcaption {font-size:70%;font-weight:500;text-decoration:underline}
 .content {overflow:hidden;border:none;left:0px;right:0px;font-size:90%}
 .frame {overflow:auto;max-width:100%;max-height:100%;}
-input , textarea {font-family:consolas, monospace;color:var(--color1)}
+input , textarea {font-family:consolas, monospace;background-color:var(--colorInput);color:var(--colorInputText)}
 [c] {overflow:visible}
 *:focus {outline: 0px solid transparent;box-shadow:0px 0px 5px 2px var(--colorTrue) !important;}
 `);
@@ -544,38 +562,47 @@ gui._Item=class{
 				if(prop.R)gui.rootContainer.R(prop.R);
 			}
 		}else{
+			// check class and value-type to make sure they are compatible (if not, this item must be re-created with correct class)
 			if(prop.c!==undefined){
 				if(prop.c!==this._classDefaults.c){
 					this.c(prop.c,prop);
 					return;
 				}
 			}else if(prop.v!==undefined && prop.v.constructor!==this._classDefaults.v.constructor){
-				// console.log(prop,prop.v.constructor,{Array:'bin',Boolean:'btn',String:'txt',Number:'num'}[prop.v.constructor]);
-				// prop.c={Array:'bin',Boolean:'btn',String:'txt',Number:'num'}[prop.v.constructor];
 				prop.c=gui.vType(prop.v).prototype._classDefaults.c;
 				this.c(prop.c,prop);
 				return;
 			}
-			let r=prop.R;											//if there is an R command, save it for later
-			if(r)delete prop.R;
-			let q=prop.Q;											//if there is an Q command, save it for later
-			if(q)delete prop.Q;
+			// set defaults
 			if(prop.df!==undefined){
 				this._updateProp('df',prop.df);
 				delete prop.df;
 			}
+			// set value
 			if(prop.v!==undefined){
 				this._updateProp('v',prop.v);
 				delete prop.v;
 			}
+			// process all other properties that aren't animation
+			let r=prop.R;											//if there is an R command, save it for later
+			if(r)delete prop.R;
+			let q=prop.Q;											//if there is an Q command, save it for later
+			if(q)delete prop.Q;
 			for(var propName in prop){
 				if(!propName.startsWith('+'))
 					this._updateProp(propName,prop[propName]);
 			}
+			// set all animation options
 			for(var propName in prop){
-				if(propName.startsWith('+'))
+				if(propName.startsWith('+') && propName.endsWith('|'))
 					this._updateProp(propName,prop[propName]);
 			}
+			// start all animations
+			for(var propName in prop){
+				if(propName.startsWith('+') && !propName.endsWith('|'))
+					this._updateProp(propName,prop[propName]);
+			}
+			// finally, process the request and queue commands
 			if(r)this.R(r);
 			if(q && q.constructor===Array){
 				for(let prop of q)
@@ -644,19 +671,18 @@ gui._Item=class{
 	}
 	_uniqueId(){return this._prop.id && gui.uniqueId(this._prop.id);}
 	_getId(){
-		if(this._uniqueId()){
+		if(this._uniqueId()){  // if this item's id is unique, use its id
 			return this._prop.id;
-		}else if(this._parent===gui.rootContainer){
-			return this._getIndex();
-		}else{
-			//Warning: This will give non-unique in-container id (tho that's consistent with UINL1.1 spec)
+		}else if(this._parent===gui.rootContainer){  // otherwise, if this is in root container, send its id or index
+			return this._prop.id || this._getIndex();
+		}else{  // otherwise, create an idPath, where the last parent in the path has a unique id (if possible)
 			var parent=this._parent,
-				fullname=[this._prop.id||this._getIndex(),parent._prop.id||parent._getIndex()];
+				idPath=[this._prop.id||this._getIndex(),parent._prop.id||parent._getIndex()];
 			while(parent._parent!==gui.rootContainer && !parent._uniqueId()){
 				parent=parent._parent;
-				fullname.push(parent._prop.id||parent._getIndex());
+				idPath.push(parent._prop.id||parent._getIndex());
 			}
-			return fullname.reverse();
+			return idPath.reverse();
 		}
 	}
 	_sendMsg(msg){
@@ -799,6 +825,12 @@ gui._Container=class extends gui._Item{
 			this._children.push(child);
 		return child;
 	}
+	_beforeRemove(){
+		for(var i=this._children.length;i--;){
+			this._children[i]._beforeRemove();
+		}
+		super._beforeRemove();
+	}
 	_removeChild(child){
 		child._beforeRemove();										//cleanup
 		if(child._prop.id)delete this._childmap[child._prop.id];	//remove from _childmap
@@ -875,7 +907,7 @@ gui._ContainerWithNoParent=class extends gui._Container{
 //////////////////////////////////////////////////////////////////////////////
 // Bin
 addCSS(`
-[c='bin']:not(tr):not([tag]):not([shp]):not([h]):not([level='0']) {border-left: solid 0.2px #ccc}
+[c='bin']:not(tr):not([tag]):not([shp]):not([h]):not([level='0']) {border-left: solid 0.2px var(--colorBorder)}
 [c='bin']:not(tr)[id]:not([cap='']):not([y]) , [c='bin']:not(tr)[cap]:not([cap='']):not([y]) {margin-top:1.5em}
 [c='bin']:not(tr) > .title:empty {display:none}
 [c='bin']:not(tr) > .title:not(empty) {position:absolute;bottom:100%;border-bottom:solid 1px var(--colorBorder);}
@@ -947,7 +979,7 @@ addCSS(`
 [c='txt'] > .content {white-space:pre-wrap}
 [c='txt'][id] > .content {margin-left:.5em}
 [c='txt'][cap]:not([cap='']) > .content {margin-left:.5em}
-textarea {white-space:pre;min-height:8ex;max-height:28ex;width:calc(100% - 0.5em);font-size:11pt;border:solid 1px lightgray !important}
+textarea {white-space:pre;min-height:8ex;max-height:28ex;width:40em;max-width:calc(100% - 0.5em);font-size:11pt;border:solid 1px var(--colorBorder) !important}
 `);
 function autoHeight(element){
 	if(element.constructor===HTMLTextAreaElement){
@@ -1022,8 +1054,8 @@ addCSS(`
 [c='num'] > .title:not(:empty):after {content:":"}
 [c='num'] > .content {display:inline-block; }
 
-input[disabled] {background-color:transparent}
-input:not([disabled]) {border:solid 1px lightgray}
+input[disabled] {background-color:transparent;color:var(--color1)}
+input:not([disabled]) {border:solid 1px var(--colorBorder)}
 
 [c='num'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:text-bottom}
 `);
@@ -1104,8 +1136,8 @@ gui.Num.prototype._classDefaults={c:'num',v:0};
 //////////////////////////////////////////////////////////////////////////////
 // boolean items
 addCSS(`
-[c='btn']:active {background-color:var(--colorTrue) !important;}
 [c='btn']:hover {background-color:var(--colorFalseHover) !important;}
+[c='btn']:active {background-color:var(--colorTrue) !important;}
 [c='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;}
 [c='btn'] > * {display:inline-block}
 [c='btn']:not([shp]) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3)}
@@ -1113,6 +1145,7 @@ addCSS(`
 [c='btn']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
 [c='btn'][in]:empty {width:1em;height:1em;border-radius:2em;}
 [btnContainer] [c='btn'] {display:none}
+[btnContainer]:hover {background-color:var(--colorFalseHover) !important;}
 [btnContainer]:active {background-color:var(--colorTrue) !important;}
 [btnContainer]:not(tr) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);cursor:pointer;border-radius:4px;}
 [v="true"]:not([c='txt']) {background-color:var(--colorTrue) !important;}
@@ -1135,6 +1168,7 @@ gui.Btn=class extends gui._Item{
 	}
 	_beforeRemove(){
 		gui.btnBinsChanged.add(this._parent);
+		super._beforeRemove();
 	}
 	v(v){
 		if(v){
@@ -1338,7 +1372,6 @@ gui._Item.prototype.R=async function(v){
 addCSS(`
 .tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999;padding:5px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
 .tooltiptext::first-line {font-weight:bold}
-.contextMenu {display:none;position:fixed;z-index:10;width:auto !important;height:auto !important;padding:0.5em !important;background-color:var(--color0);border:solid 1px gray;box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;}
 `);
 gui.tooltipOn=function(e){
 	if(!gui.tooltip){
@@ -1396,36 +1429,122 @@ gui._Item.prototype.tag=function(v){
 }
 gui._Item.prototype.sx=function(v){this._frame.scrollLeft=v+'%';}
 gui._Item.prototype.sy=function(v){this._frame.scrollTop=v+'%';}
+//////////////////////////////////////////////////////////////////////////////
 
+
+//////////////////////////////////////////////////////////////////////////////
+// context menu
+addCSS(`
+.contextMenu {display:none;position:fixed;z-index:10;width:auto !important;height:auto !important;padding:0.5em !important;background-color:var(--color0);border:solid 1px var(--colorBorder);box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;}
+.contextMenu>.frame>.content {display:flex;flex-direction:column}
+.ctxShown {background-color:var(--colorFalseHover) !important}
+`);
 gui.Ctx=class extends gui._ContainerWithNoParent{};
 gui.Ctx.prototype._classDefaults={c:'ctx',v:[]};
-gui._Item.prototype.ctx=function(v){
-	// remove old context menu bin
-	if(this._contextMenuItem)
+gui._Item.prototype._beforeRemove=function(){
+	if(this._contextMenuItem){
+		this._removeCtxFunctionality();
 		this._contextMenuItem._element.remove();
-	if(v){
-		// create new context menu bin
-		this._contextMenuItem=new gui.Ctx(v,document.body);
-		var ctxDiv=this._contextMenuItem._element;
-		// add context menu style and functionality
-		ctxDiv.className='contextMenu';
-		ctxDiv.setAttribute('tabindex', '0');
-		//TODO: for btn/opt, use click/mousedown/mouseup events
-		this._element.addEventListener('contextmenu',e=>{
-			e.preventDefault();
-			ctxDiv.style.display='block';
-			ctxDiv.style.left=e.clientX+1;
-			ctxDiv.style.top=e.clientY+1;
-			ctxDiv.focus();
-			function hideContextMenu(e){
-				if(!ctxDiv.contains(e.relatedTarget)){
-					ctxDiv.style.display='none';
-					ctxDiv.removeEventListener('focusout',hideContextMenu);
-				}
-			}
-			ctxDiv.addEventListener('focusout',hideContextMenu);
-		});
 	}
+}
+gui._Item.prototype.ctx=function(v){
+	// TODO: 
+	//	add ctxOpt "hideOn" functionality
+	//	hold-button should probly not send false event until ctx menu is closed
+	//	"opt" inside "ctx" loses its class when it's part of defaults for btn/hold, but not for other items
+		// {"df":{"ctx":{"value":[
+		// 	"This is a context menu",
+		// 	{"c":"opt","id":"Select Me"},
+		// 	{"c":"btn","id":"Menu Option 1"},
+		// 	{"c":"btn","id":"Menu Option 2"},
+		// 	{"c":"btn","id":"Menu Option 3"}
+		// ]}},"value":[
+		// "Right-click (or long-tap) on me for menu",
+		// {
+		// "c":"btn",
+		// "id":"bbb",
+		// "ctx":{"toggle":1}
+		// },
+		// {
+		// "c":"hold",
+		// "id":"Hold me for Menu",
+		// "ctx":{"toggle":1}
+		// }
+		// ]}
+	//////
+	// remove old context menu bin
+	console.log('-->',JSON.stringify(this._prop.ctx,null,2));
+	if(this._contextMenuItem){
+		this._removeCtxFunctionality();
+		this._contextMenuItem._element.remove();
+	}
+	var ctxOptions=this._prop.ctx;
+	if(ctxOptions.constructor===Object && ctxOptions.v && ctxOptions.v.constructor===Array){
+		// create new context menu bin
+		this._contextMenuItem=new gui.Ctx(ctxOptions,document.body);
+		// add this item as parent of context menu items, so that their idPath's are calculated correctly in ._getId()
+		for(let item of this._contextMenuItem._children){
+			item._parent=this;
+		}
+		// add context menu style and functionality
+		this._contextMenuItem._element.className='contextMenu';
+		this._contextMenuItem._element.setAttribute('tabindex','0');
+		this._addCtxFunctionality();
+	}
+}
+gui._Item.prototype._ctxShow=function(e){
+	e.preventDefault();
+	var currentItemDiv=e.currentTarget;
+	var currentItem=currentItemDiv._item;
+	var ctxDiv=currentItem._contextMenuItem._element;
+	ctxDiv.style.display='block';
+	currentItemDiv.classList.add('ctxShown');
+	if(currentItem._prop.ctx.toggle){
+		ctxDiv.style.left=currentItemDiv.getBoundingClientRect().left;
+		ctxDiv.style.top=currentItemDiv.getBoundingClientRect().bottom;
+	}else{
+		ctxDiv.style.left=e.clientX+1;
+		ctxDiv.style.top=e.clientY+1;
+	}
+	ctxDiv.focus();
+	currentItem._ctxHide=function(){
+		currentItemDiv.classList.remove('ctxShown');
+		ctxDiv.style.display='none';
+		ctxDiv.removeEventListener('focusout',focusOut);
+		ctxDiv.removeEventListener('click',childClicked);
+	}
+	function focusOut(e){
+		if(!ctxDiv.contains(e.relatedTarget) && e.relatedTarget!==currentItemDiv){
+			currentItem._ctxHide();
+		}
+	}
+	function childClicked(e){
+		if(e.target._item && e.target._item._prop.c==='btn'){
+			currentItem._ctxHide();
+		}
+	}
+	ctxDiv.addEventListener('focusout',focusOut);
+	ctxDiv.addEventListener('click',childClicked);
+}
+gui._Item.prototype._addCtxFunctionality=function(){
+	this._element.addEventListener('contextmenu',this._ctxShow);
+}
+gui.Btn.prototype._addCtxFunctionality=function(){
+	if(this._prop.ctx.toggle){
+		this._element.addEventListener('click',e=>{
+			if(this._contextMenuItem._element.style.display==='block'){
+				this._ctxHide();
+			}else{
+				this._ctxShow(e);
+			}
+		});
+	}else{
+		this._element.addEventListener('contextmenu',this._ctxShow);
+	}
+}
+gui._Item.prototype._removeCtxFunctionality=function(){
+	this._element.removeEventListener('contextmenu',this._ctxShow);
+	this._element.removeEventListener('click',this._ctxShow);
 }
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1434,9 +1553,9 @@ gui._Item.prototype.ctx=function(v){
 // interactive options
 addCSS(`
 [in="-1"] {pointer-events:none}
-.controlWidth {z-index:10000;cursor:ew-resize;height:50%;width:0px;border-right:dotted 3px gray;position:absolute;right:-2.5px;top:25%}
-.controlHeight {z-index:10000;cursor:ns-resize;width:50%;height:0px;border-bottom:dotted 3px gray;position:absolute;bottom:-2.5px;left:25%}
-.controlMove {z-index:10000;cursor:move;width:50%;height:0px;border-top:solid 3px gray;position:absolute;top:-2.5px;left:25%}
+.controlWidth {z-index:10000;cursor:ew-resize;height:50%;width:0px;border-right:dotted 3px var(--colorBorder);position:absolute;right:-2.5px;top:25%}
+.controlHeight {z-index:10000;cursor:ns-resize;width:50%;height:0px;border-bottom:dotted 3px var(--colorBorder);position:absolute;bottom:-2.5px;left:25%}
+.controlMove {z-index:10000;cursor:move;width:50%;height:0px;border-top:solid 3px var(--colorBorder);position:absolute;top:-2.5px;left:25%}
 [man*='x'],[man*='y'] {cursor:move}
 `);
 gui.Bin.prototype._hasDescendant=function(item){
@@ -1900,6 +2019,8 @@ gui.Time.prototype._classDefaults={c:'time',v:0};
 //////////////////////////////////////////////////////////////////////////////
 // holddown button
 addCSS(`
+[c='hold']:hover {background-color:var(--colorFalseHover) !important;}
+[c='hold']:active {background-color:var(--colorTrue) !important;}
 [c='hold'] {text-align:center;display:inline-block;padding:.4em;color:var(--color1);border:1px solid rgba(0,0,0,0.2);background-color:var(--colorFalse);box-shadow: 0 0 5px -1px rgba(0,0,0,0.2);vertical-align:middle;}
 [c='hold']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
 [c='hold'][in]:empty {width:2em;height:2em;border-radius:2em;}
@@ -1926,6 +2047,19 @@ gui.Hold=class extends gui.Btn{
 		}
 		item._element.onmouseleave=this._element.onmouseup;
 		this._unbind=function(){item._element.onmousedown=item._element.onmouseup=null;}
+	}
+	_addCtxFunctionality(){
+		if(this._prop.ctx.toggle){
+			this._element.addEventListener('mousedown',this._ctxShow);
+			this._element.addEventListener('mouseup',e=>this._ctxHide());
+		}else{
+			this._element.addEventListener('contextmenu',this._ctxShow);
+		}
+	}
+	_removeCtxFunctionality(){
+		this._element.removeEventListener('contextmenu',this._ctxShow);
+		this._element.removeEventListener('mousedown',this._ctxShow);
+		this._element.removeEventListener('mouseup',this._ctxShow);
 	}
 	v(v){}
 }
@@ -1961,6 +2095,9 @@ gui.Opt=class extends gui.Btn{
 			}
 		}
 		this._unbind=function(){item._element.onclick=null;}
+	}
+	_addCtxFunctionality(){
+		this._element.addEventListener('contextmenu',this._ctxShow);
 	}
 	cap(v){
 		super.cap(v);
@@ -2021,7 +2158,7 @@ gui.Doc.prototype._classDefaults={c:'doc',v:''};
 // win
 addCSS(`
 .glass {z-index:1;position:fixed;top:0px;left:0px;width:100vw;height:100vh;background-color:rgba(255,255,255,.5);pointer-events:all}
-[c='win'] {z-index:1;position:absolute;top:50%;left:50%;transform:translate(-50%,-100%) !important;min-width:200;max-width:90vw;max-height:90vh;border:solid 1px gray;border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5)}
+[c='win'] {z-index:1;position:absolute;top:50%;left:50%;transform:translate(-50%,-100%) !important;min-width:200;max-width:90vw;max-height:90vh;border:solid 1px var(--colorBorder);border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5)}
 [c='win']>.title {padding:5px; background:linear-gradient(#fff,#fff,#fff,#eee,#ddd)}
 [c='win']>.frame {margin:1em}
 `);
@@ -2054,6 +2191,7 @@ gui.Win=class extends gui.Bin{
 	_beforeRemove(){
 		if(this._glass)this._glass.remove();
 		gui.disableAllUnderGlass();
+		super._beforeRemove();
 	}
 	mod(v){
 		if(v && !this._glass){
@@ -2106,10 +2244,10 @@ addCSS(`
 [c="one"] > .frame > .content > * {border:none !important}
 [c="one"] > .frame > .content > *:not([fold="1"]) {display:none}
 [c="one"] > .frame > .content > * > .title {display:none}
-[c="one"] > .frame {border: solid 1px gray;background-color:#fff}
+[c="one"] > .frame {border: solid 1px var(--colorBorder);background-color:var(--color0)}
 .tabTitles {margin-top:5px;z-index:1;margin:4px}
-.tabTitles > span {border:solid 1px gray;border-radius:3px;font-size:70%;font-family:Arial;margin:4px;padding-left:10px;padding-right:10px;cursor:pointer;background-color:var(--colorHead)}
-.visibleTabTitle {border-bottom:none !important;font-weight:bold;padding-bottom:5.5px;background-color:#fff !important;border-radius: 3px 3px 0px 0px !important;}
+.tabTitles > span {border:solid 1px var(--colorBorder);border-radius:3px;font-size:70%;font-family:Arial;margin:4px;padding-left:10px;padding-right:10px;cursor:pointer;background-color:var(--colorHead)}
+.visibleTabTitle {border-bottom:none !important;font-weight:bold;padding-bottom:5.5px;background-color:var(--color0) !important;border-radius: 3px 3px 0px 0px !important;}
 `);
 gui.One=class extends gui.Bin{
 	_switchTabs(child){

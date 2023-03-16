@@ -105,6 +105,42 @@ var SAMPLE_UINL = new Map([
  "component class \\"one\\" is used to display a widget with several visible containers of which only one is visible at a time (e.g., tabs, carousel, accordion)"
 ]}`],
 
+    ['context menu',`{"value":[
+ {
+  "value":"Right-click (or long-tap) on me for menu",
+  "ctx":{"value":[
+   "This is a context menu",
+   {"c":"opt","id":"Select Me"},
+   {"c":"btn","id":"Menu Option 1"},
+   {"c":"btn","id":"Menu Option 2"},
+   {"c":"btn","id":"Menu Option 3"}
+  ]}
+ },
+ {
+  "c":"btn",
+  "id":"Click me for Menu",
+  "ctx":{"toggle":1,"value":[
+   "This is a context menu",
+   {"c":"opt","id":"Select Me"},
+   {"c":"btn","id":"Menu Option 1"},
+   {"c":"btn","id":"Menu Option 2"},
+   {"c":"btn","id":"Menu Option 3"}
+  ]}
+ },
+ {
+  "c":"hold",
+  "id":"Hold me for Menu",
+  "ctx":{"toggle":1,"value":[
+   "This is a context menu",
+   {"c":"opt","id":"Select Me"},
+   {"c":"btn","id":"Menu Option 1"},
+   {"c":"btn","id":"Menu Option 2"},
+   {"c":"btn","id":"Menu Option 3"}
+  ]}
+ }
+
+]}`],
+
 // TODO: add plot/data, gr, animation
 
 ]);
@@ -119,12 +155,16 @@ function userEvent(msg){
         display.caption='UINL demo';
         display.require={c:['grid','opt','doc'],fmt:['mkdn'],caption:[]};
         display.style=`
-                #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray;padding:5px}
-                #Warning {text-align:right;color:#a00}
+                #Preview {padding:5px}
+                #Warning {text-align:right;}
                 #Warning * {display:inline}
-                
-                .series1 {--rotate:45deg !important;background-color:#fa8;border-width:3px;border-color:#da8;color:#da8}
-                .series2 {border-radius:100%;background-color:#8af;border-width:3px;border-color:#8ad;color:#8ad}
+
+                #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray}
+                #Warning {color:#a00}
+                @media (prefers-color-scheme: dark) {
+                    #Preview {background:linear-gradient(to bottom right,#222 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
+                    #Warning {color:#d22}
+                }
             `;
         display.v=[
             {id:"Preview"},
