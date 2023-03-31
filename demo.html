@@ -87,7 +87,7 @@ var SAMPLE_UINL = new Map([
  "there are twenty-five UI component classes in UINL, several of which are container widgets, including table, win (popup), and one (tabs)"
 ]}`],
 
-    ['tabs', `{"value":[
+['tabs', `{"value":[
  {
   "id":"Personnel",
   "class":"one",
@@ -103,6 +103,29 @@ var SAMPLE_UINL = new Map([
   ]
  },
  "component class \\"one\\" is used to display a widget with several visible containers of which only one is visible at a time (e.g., tabs, carousel, accordion)"
+]}`],
+
+['windows', `{"value":[
+ {
+  "id":"Personnel",
+  "defaults":{
+    "class":"win",
+    "closeable":1,
+    "foldable":1,
+    "step":0.01,
+    "unit":"$"
+  },
+  "value":[
+   {"id":"P801","value":[{"id":"Name","value":"Max Brownwell"},{"id":"Gender","value":"female"},{"id":"Salary","value":22.75}]},
+   {"id":"P807","value":[{"id":"Name","value":"Carrie Vanilla"},{"id":"Gender","value":"male"},{"id":"Salary","value":22}]},
+   {"id":"P811","value":[{"id":"Name","value":"Jenny Jerrings"},{"id":"Gender","value":"female"},{"id":"Salary","value":21}]},
+   {"id":"P832","value":[{"id":"Name","value":"Jerry Jennings"},{"id":"Gender","value":"male"},{"id":"Salary","value":21}]}
+  ]
+ },
+ {"class":"win","modal":1,"closeable":1,"value":[
+    "This is a popup!"
+ ]},
+ "Component class \\"win\\" is used to display a window. Use \\"modal\\":1 property to change the window into a modal popup."
 ]}`],
 
     ['context menu',`{"value":[

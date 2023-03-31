@@ -197,6 +197,39 @@ function hiddenProp(obj,key,val){
 		value: val
 	});
 }
+function dragElement(elementToDrag,elementToHold,classNotToHold) {
+	var x,y,left,top;
+	const mouseDownHandler=function(e){
+		if(e.button===0 && !(classNotToHold && e.target.classList.contains(classNotToHold))){
+			// Get the current mouse position
+			x = e.clientX;
+			y = e.clientY;
+			// get/set current element position
+			left=elementToDrag.offsetLeft;
+			top=elementToDrag.offsetTop;
+			elementToDrag.style.left = left;
+			elementToDrag.style.top = top;
+			// Attach the listeners to `document`
+			document.addEventListener('mousemove', mouseMoveHandler);
+			document.addEventListener('mouseup', mouseUpHandler);
+		}
+	};
+	const mouseMoveHandler = function (e) {
+		left+=e.clientX-x;
+		top+=e.clientY-y;
+		elementToDrag.style.left = left;
+		elementToDrag.style.top = top;
+		// Reassign the position of mouse
+		x = e.clientX;
+		y = e.clientY;
+	};
+	const mouseUpHandler = function () {
+		// Remove the handlers of `mousemove` and `mouseup`
+		document.removeEventListener('mousemove', mouseMoveHandler);
+		document.removeEventListener('mouseup', mouseUpHandler);
+	};
+	(elementToHold||elementToDrag).addEventListener('mousedown', mouseDownHandler);
+}
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -459,7 +492,7 @@ addCSS(`
 scrollbar {width:5px;height:5px;}
 a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar {width:5px;height:5px;}
-::-webkit-scrollbar-thumb {background: rgba(90,90,90,0.3);}
+::-webkit-scrollbar-thumb {background: var(--colorTrue);}
 ::-webkit-scrollbar-track {background: rgba(0,0,0,0.1);}
 body {background-color:var(--color0);color:var(--color1);font-size:18pt;overflow:overlay;font-family: trebuchet ms, open sans, lato, montserrat, sans-serif}
 [level="0"] , [level="0"]>* {margin:0px !important;padding:0px !important;width:100% !important;height:100% !important}
@@ -804,7 +837,7 @@ gui._Container=class extends gui._Item{
 	}
 	_newChild(prop){
 		var type=gui.getType(prop);
-		if(type===gui.Win && this!==gui.rootContainer)type=gui.Bin; //TODO: this ensures "win" is only allowed at root-level, which is inconsistent with the spec
+		// if(type===gui.Win && this!==gui.rootContainer)type=gui.Bin; //TODO: this ensures "win" is only allowed at root-level, which is inconsistent with the spec
 		if(!type){
 			var defaultType=gui.getType(this._prop.df);
 			if('v' in prop){
@@ -1147,7 +1180,7 @@ gui.Num.prototype._classDefaults={c:'num',v:0};
 
 
 //////////////////////////////////////////////////////////////////////////////
-// boolean items
+// buttons
 addCSS(`
 [c='btn']:hover {background-color:var(--colorFalseHover) !important;}
 [c='btn']:active {background-color:var(--colorTrue) !important;}
@@ -1397,6 +1430,10 @@ gui.tooltipOn=function(e){
 gui.tooltipOff=function(e){gui.tooltip.style.visibility='hidden';};
 gui._Item.prototype.i=function(v){
 	var parent=this._parent;
+	if(v<0){
+		v=this._parent._children.length+v;
+		this._prop.i=v;
+	}
 	if(parent && parent._children[v]!==this){
 		var myindx=parent._children.indexOf(this);
 		if(myindx>-1)
@@ -1407,6 +1444,9 @@ gui._Item.prototype.i=function(v){
 		}else{
 			parent._content.appendChild(this._outerElement);
 			parent._children.push(this);
+		}
+		for(var i=0;i<parent._children.length;i++){
+			parent._children[i]._prop.i=i;
 		}
 	}
 };
@@ -1491,6 +1531,7 @@ gui._Item.prototype.ctx=function(v){
 		this._contextMenuItem._element.remove();
 	}
 	var ctxOptions=this._prop.ctx;
+	// add new context menu
 	if(ctxOptions.constructor===Object && ctxOptions.v && ctxOptions.v.constructor===Array){
 		// create new context menu bin
 		this._contextMenuItem=new gui.Ctx(ctxOptions,document.body);
@@ -1744,11 +1785,12 @@ gui._Item.prototype.on=function(v){
 //////////////////////////////////////////////////////////////////////////////
 // additional bin options
 addCSS(`
-.controlTitle {cursor:pointer;user-select:none;display:inline-block;width:1em;height:1em;text-align:center;font-family:monospace;overflow:visible !important;border-radius:2px;border:solid 0.5px #ddd;margin-right:0.25em}
+.controlTitle {cursor:pointer;user-select:none;display:inline-block;width:1em;text-align:center;font-family:monospace;overflow:visible !important;background-color:var(--colorFalse);margin-right:1px}
 [fold="2"]>.title {position:relative !important;display:block}
 [fold="2"]>.title:after {content:"...";padding:2px;}
 [fold="2"]>.frame {display:none}
-.controlFold:hover {background-color:#ddd}
+[fold="2"] {max-height:2em !important;resize:none !important;}
+.controlFold:hover {background-color:var(--colorFalseHover)}
 [fold='1']>.title>.controlFold:before {content:'-'}
 [fold='2']>.title>.controlFold:before {content:'+'}
 .controlClose:hover {background-color:f33}
@@ -2169,10 +2211,13 @@ gui.Doc.prototype._classDefaults={c:'doc',v:''};
 //////////////////////////////////////////////////////////////////////////////
 // win
 addCSS(`
-.glass {z-index:1;position:fixed;top:0px;left:0px;width:100vw;height:100vh;background-color:rgba(255,255,255,.5);pointer-events:all}
-[c='win'] {z-index:1;position:absolute;top:50%;left:50%;transform:translate(-50%,-100%) !important;min-width:200;max-width:90vw;max-height:90vh;border:solid 1px var(--colorBorder);border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5)}
+glass:last-of-type {z-index:1;position:absolute;top:0px;left:0px;background-color:rgba(255,255,255,.5);pointer-events:all}
+[c='win'] {z-index:1;position:absolute;width:350;height:250;max-width:90vw;max-height:90vh;border:solid 1px var(--colorBorder);border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);display:flex;flex-direction:column;overflow:auto;resize:both}
 [c='win']>.title {padding:5px; background:linear-gradient(#fff,#fff,#fff,#eee,#ddd)}
 [c='win']>.frame {margin:1em}
+.haswindows {min-height:400px;resize:both}
+.hasglass {overflow:hidden}
+[c='win']:last-of-type>.title {background:none;background-color:var(--colorTrue)}
 `);
 gui.disableAllUnderGlass=function(){
 	//find top glass and disable everything under it
@@ -2190,32 +2235,70 @@ gui.disableAllUnderGlass=function(){
 		}
 	}
 }
+gui.focusedToTop=function(e){
+	var element=e.currentTarget;
+	if(element._item._prop.i!==element._item._parent._children.length-1){
+		setTimeout(()=>element.isConnected&&element._item.i(-1),150);
+	}
+}
 gui.Win=class extends gui.Bin{
 	_initContent(){
-		this._element=document.createElement('div');
+		this._element=document.createElement('win');
 		this._title=this._element.appendChild(document.createElement('div'));
 		this._frame=this._element.appendChild(document.createElement('div'));
 		this._content=this._frame.appendChild(document.createElement('div'));
 		this._parent._frame.appendChild(this._element);
 		this._outerElement=this._element;
 		document.activeElement.blur();
+		this._parent._frame.classList.add('haswindows');
+		this._parent._childWindowX=(this._parent._childWindowX||0)+25;
+		this._parent._childWindowY=(this._parent._childWindowY||0)+25;
+		this._element.style.left=this._parent._childWindowX+this._parent._frame.scrollLeft;
+		this._element.style.top=this._parent._childWindowY+this._parent._frame.scrollTop;
+		// this._setAttr('tabindex',0);
+		this._element.addEventListener('mousedown',gui.focusedToTop);
+		dragElement(this._element,this._title,'controlTitle');
 	}
 	_beforeRemove(){
 		if(this._glass)this._glass.remove();
 		gui.disableAllUnderGlass();
+		this._parent._frame.classList.remove('haswindows','hasglass');
 		super._beforeRemove();
 	}
 	mod(v){
 		if(v && !this._glass){
-			this._glass=this._parent._frame.insertBefore(document.createElement('div'),this._outerElement);
-			this._glass.className='glass';
+			this._glass=this._parent._frame.insertBefore(document.createElement('glass'),this._outerElement);
+			setTimeout(()=>{
+				this._glass.style.width=this._parent._content.offsetWidth;
+				this._glass.style.height=this._parent._content.offsetHeight;
+			},0);
+			this._parent._frame.classList.add('hasglass');
+			// this._glass.className='glass';
 		}else if(!v && this._glass){
+			this._parent._frame.classList.remove('hasglass');
 			this._glass.remove();
 		}
 		gui.disableAllUnderGlass();
 	}
+	fold(v){
+		super.fold(v);
+		if(v===2){
+			this._oldTop=this._element.style.top;
+			this._element.style.top='';
+			this._element.style.bottom=0;
+		}else if(v===1){
+			this._element.style.bottom='';
+			if(this._oldTop){
+				this._element.style.top=this._oldTop;
+			}
+		}
+	}
 	i(v){
 		var parent=this._parent;
+		if(v<0){
+			v=this._parent._children.length+v;
+			this._prop.i=v;
+		}
 		if(parent && parent._children[v]!==this){
 			var myindx=parent._children.indexOf(this);
 			if(myindx>-1)
@@ -2224,6 +2307,9 @@ gui.Win=class extends gui.Bin{
 				parent._children.splice(v,0,this);
 			}else{
 				parent._children.push(this);
+			}
+			for(var i=0;i<parent._children.length;i++){
+				parent._children[i]._prop.i=i;
 			}
 			var insertBefore;
 			for(var e of parent._frame.children){
