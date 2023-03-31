@@ -22,8 +22,8 @@ var SAMPLE_UINL = new Map([
 ]}`],
 
     ['buttons', `{"value":[
- {"id":"Press me","class":"btn"},
- {"id":"No, press me","class":"btn"},
+ {"id":"Click me","class":"btn"},
+ {"id":"No, click me","class":"btn"},
  {"id":"Hold me","class":"hold"}
 ]}`],
 
@@ -149,9 +149,9 @@ var SAMPLE_UINL = new Map([
 var lastValue;
 
 
-function userEvent(msg){
-    var itemId=msg.u,itemValue=msg.v,uinl,display={Q:[]};
-    if(msg.t<=1){  // on handshake
+function userEvent(event){
+    var itemId=event.u,itemValue=event.v,uinl,display={Q:[]};
+    if(event.t<=1){  // on handshake
         display.caption='UINL demo';
         display.require={c:['grid','opt','doc'],fmt:['mkdn'],caption:[]};
         display.style=`
@@ -161,8 +161,9 @@ function userEvent(msg){
 
                 #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray}
                 #Warning {color:#a00}
+                #Warning>.title:after {content:":"}
                 @media (prefers-color-scheme: dark) {
-                    #Preview {background:linear-gradient(to bottom right,#222 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
+                    #Preview {background:linear-gradient(to bottom right,#182028 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
                     #Warning {color:#d22}
                 }
             `;
@@ -207,8 +208,10 @@ function userEvent(msg){
             uinl.i=0;
             display.Q.push({U:'Preview',v:null});
             v.push(uinl);
+        }else if('!' in event){
+            v.push({id:'Warning',v:event['!']});
         }else{
-            v.push({id:'UI→APP message',v:JSON.stringify(msg)});
+            v.push({id:'UI→APP message',v:JSON.stringify(event)});
         }
         display.Q.push({A:v});
     }

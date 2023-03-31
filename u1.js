@@ -443,7 +443,7 @@ addCSS(`
 }
 @media (prefers-color-scheme: dark) {
 	:root {
-		--color0: #222;
+		--color0: #182028;
 		--color1: #ccc;
 		--colorHead: #245;
 		--colorBorder: #333;
@@ -804,7 +804,7 @@ gui._Container=class extends gui._Item{
 	}
 	_newChild(prop){
 		var type=gui.getType(prop);
-		if(type===gui.Win && this!==gui.rootContainer)type=gui.Bin;
+		if(type===gui.Win && this!==gui.rootContainer)type=gui.Bin; //TODO: this ensures "win" is only allowed at root-level, which is inconsistent with the spec
 		if(!type){
 			var defaultType=gui.getType(this._prop.df);
 			if('v' in prop){
@@ -818,6 +818,12 @@ gui._Container=class extends gui._Item{
 			}else{
 				type=gui.Bin;
 				prop.v=[];
+			}
+		}else if('v' in prop){
+			let valueType=gui.vType(prop.v);
+			if(valueType!==type && !(type.prototype instanceof valueType)){
+				gui.sendUserEvent({'!':`Component class "${type.prototype._classDefaults.c}" is incompatible with a value whose type is ${prop.v.constructor.name}.\nError occurred in the following:\n${JSON.stringify(prop)}`})
+				type=valueType;
 			}
 		}
 		var child=new type(prop,this);
@@ -891,7 +897,13 @@ gui._Container=class extends gui._Item{
 		//add updates
 		this.A(updates);
 	}
-	df(){}
+	df(prop){
+		// make sure default value is never an array (for safety reasons, to prevent infinite containers)
+		if(prop && prop.v && prop.v.constructor===Array){
+			gui.sendUserEvent({'!':'Default item values can never be arrays (for safety reasons, to prevent infinite loops).\nError occurred in:\n df:'+JSON.stringify(prop)});
+			delete this._prop.df.v;
+		}
+	}
 }
 gui._ContainerWithNoParent=class extends gui._Container{
 	_initDefaults(prop){
@@ -949,6 +961,7 @@ gui.Root=class extends gui._ContainerWithNoParent{
 		else
 			this._sendMsg({requirable:IMPLEMENTED});
 	}
+	id(){}
 	style(v){load(v);}
 	open(v){window.open(v);}
 	save(v){
@@ -1473,7 +1486,6 @@ gui._Item.prototype.ctx=function(v){
 		// ]}
 	//////
 	// remove old context menu bin
-	console.log('-->',JSON.stringify(this._prop.ctx,null,2));
 	if(this._contextMenuItem){
 		this._removeCtxFunctionality();
 		this._contextMenuItem._element.remove();
