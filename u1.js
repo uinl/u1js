@@ -10,7 +10,7 @@
 		Not yet.
 			UINL does not require for all features to be implemented in UI software.
 			Any features that are required by app-side software (i.e., declared via the "require" command)
-				that are not implemented will raise an error (i.e. will send {!:Error...} message).
+				that are not implemented will raise an error (i.e. will send {"error":"Error..."} message).
 			See const IMPLEMENTED below for list of implemented UINL features.
 */
 
@@ -27,7 +27,7 @@ const IMPLEMENTED={
 	// additionally, the following option-values are available (i.e., requirable by app software)
 	//   ( [] means any potential values for a given option can be handled )
 	// error
-	'!':[],
+	error:[],
 	// open link
 	open:[],
 	// save file
@@ -281,9 +281,9 @@ gui.REQUIRED={
 		"gui.markdown=marked;"
 	]
 };
-gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'error': '!', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
+gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
 gui.TYPES={};
-gui.NO_ATTR=new Set(['!','style','require','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
+gui.NO_ATTR=new Set(['error','style','require','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
 
 gui.resetDisplay=function(){
 	document.body.innerHTML='';
@@ -432,18 +432,18 @@ gui.require=function(require,loaded){
 	var errorScreen=[];
 	for(var propName in require){
 		if(!(propName in IMPLEMENTED)){
-			gui.sendUserEvent({'!':'Sorry, I cannot handle required option: '+propName});
+			gui.sendUserEvent({error:'Sorry, I cannot handle required option: '+propName});
 			errorScreen.push({id:'Cannot handle required property option(s)',v:[propName]});
 		}else{
 			if(IMPLEMENTED[propName].length){
 				if(require[propName].constructor!==Array)require[propName]=[require[propName]];
 				if(require[propName].length===0){
-					gui.sendUserEvent({'!':'Sorry, I cannot handle required all possible values for {'+propName+'}'});
+					gui.sendUserEvent({error:'Sorry, I cannot handle required all possible values for {'+propName+'}'});
 					errorScreen.push({id:'Cannot handle all values for required property',v:[propName]});
 				}else{
 					for(var v of require[propName]){
 						if(!IMPLEMENTED[propName].includes(v)){
-							gui.sendUserEvent({'!':'Sorry, I cannot handle required option-value: {'+propName+':'+JSON.stringify(v)+'}'});
+							gui.sendUserEvent({error:'Sorry, I cannot handle required option-value: {'+propName+':'+JSON.stringify(v)+'}'});
 							errorScreen.push({id:'Cannot handle required property option(s)',v:['{'+propName+':'+JSON.stringify(v)+'}']});
 						}
 					}
@@ -684,7 +684,7 @@ gui._Item=class{
 			}
 		}catch(e){
 			console.error(e.stack);
-			this._sendMsg({'!':`Problem setting ${propName} to ${propVal} :: [[${e.stack}]]`});
+			this._sendMsg({error:`Problem setting ${propName} to ${propVal} :: [[${e.stack}]]`});
 		}
 	}
 	_getIndex(){return this._parent._children.indexOf(this);}
@@ -762,8 +762,8 @@ gui._Item=class{
 			this._titleText.remove();
 		}
 	}
+	error(v){console.error(this._prop,v);}
 }
-gui._Item.prototype['!']=function(v){console.error(this._prop,v);};
 //////////////////////////////////////////////////////////////////////////////
 
 
@@ -855,7 +855,7 @@ gui._Container=class extends gui._Item{
 		}else if('v' in prop){
 			let valueType=gui.vType(prop.v);
 			if(valueType!==type && !(type.prototype instanceof valueType)){
-				gui.sendUserEvent({'!':`Component class "${type.prototype._classDefaults.c}" is incompatible with a value whose type is ${prop.v.constructor.name}.\nError occurred in the following:\n${JSON.stringify(prop)}`})
+				gui.sendUserEvent({error:`Component class "${type.prototype._classDefaults.c}" is incompatible with a value whose type is ${prop.v.constructor.name}.\nOccurred in the following:\n${JSON.stringify(prop)}`})
 				type=valueType;
 			}
 		}
@@ -894,7 +894,13 @@ gui._Container=class extends gui._Item{
 		return this._searchIdArray(id.constructor===Array?id:[id],prop);
 	}
 	_searchIdArray(id,prop){
-		var child=typeof(id[0])==='number'?this._children[id[0]]:this._childmap[id[0]];
+		var child;
+		if(typeof(id[0])==='number'){
+			if(id[0]<0)id[0]=this._children.length+id[0];
+			child=this._children[id[0]]
+		}else{
+			child=this._childmap[id[0]];
+		}
 		if(child){
 			if(id.length>1){
 				return child._searchIdArray(id.slice(1),prop);
@@ -933,7 +939,7 @@ gui._Container=class extends gui._Item{
 	df(prop){
 		// make sure default value is never an array (for safety reasons, to prevent infinite containers)
 		if(prop && prop.v && prop.v.constructor===Array){
-			gui.sendUserEvent({'!':'Default item values can never be arrays (for safety reasons, to prevent infinite loops).\nError occurred in:\n df:'+JSON.stringify(prop)});
+			gui.sendUserEvent({error:'Default item values can never be arrays (for safety reasons, to prevent infinite loops).\nOccurred in:\n df:'+JSON.stringify(prop)});
 			delete this._prop.df.v;
 		}
 	}
@@ -1337,7 +1343,7 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 				gui.ws.send(JSON.stringify(data));
 			}
 			gui.ws=new window.WebSocket(app.location);
-			gui.ws.onerror=function(e){gui({v:null,'!':'Cannot establish connection to '+app.location});};
+			gui.ws.onerror=function(e){gui({v:null,error:'Cannot establish connection to '+app.location});};
 			gui.ws.onclose=function(event){
 				console.log('Connection closed ('+event.code+').');
 			};

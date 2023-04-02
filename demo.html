@@ -198,8 +198,7 @@ function userEvent(event){
     }else{
         display.Q=[];
         display.Q.push({U:'UI→APP message',v:null});
-        display.Q.push({U:'Warning',v:null});
-        let v=[];
+        let addItems=[];
         if(itemId=='UINL'){
             try{
                 uinl=JSON.parse(itemValue);
@@ -210,15 +209,18 @@ function userEvent(event){
                         uinl.id='Preview';
                         uinl.i=0;
                         // display.Q.push(uinl);
+                        display.Q.push({U:'Warning',v:null});
                         display.Q.push({U:'Preview',v:null});
-                        v.push(uinl);
+                        addItems.push(uinl);
                     }
                 }else{
+                    display.Q.push({U:'Warning',v:null});
                     display.Q.push({id:'Warning',v:'APP→UI message must be a JSON object.'});
                 }
             }catch(e){
                 if(e.message.includes('JSON')){
-                    v.push({id:'Warning',v:'Invalid JSON string'});
+                    display.Q.push({U:'Warning',v:null});
+                    addItems.push({id:'Warning',v:'Invalid JSON string'});
                 }else{
                     throw(e);
                 }
@@ -229,14 +231,16 @@ function userEvent(event){
             uinl=JSON.parse(lastValue);
             uinl.id='Preview';
             uinl.i=0;
+            display.Q.push({U:'Warning',v:null});
             display.Q.push({U:'Preview',v:null});
-            v.push(uinl);
+            addItems.push(uinl);
         }else if('!' in event){
-            v.push({id:'Warning',v:event['!']});
+            display.Q.push({U:'Warning',v:null});
+            addItems.push({id:'Warning',v:event['!']});
         }else{
-            v.push({id:'UI→APP message',v:JSON.stringify(event)});
+            addItems.push({id:'UI→APP message',v:JSON.stringify(event)});
         }
-        display.Q.push({A:v});
+        display.Q.push({add:addItems});
     }
     app.display(display);
 }
