@@ -1,49 +1,65 @@
 <html><head>
 <script src="u1.js"></script>
 <script>
-    function userEvent(event){
-        if(event.t===0){
-            // on handshake
-            //  (event.t refers to time since handshake; event.t is 0)
-            app.display({
+
+var uiInfo;
+
+// on start (on handshake event)
+app.start(event=>{
+    uiInfo = event;  // save handshake event, so the UI info can be displayed later
+    app.display({    // display text label 'Hello World!' and 3 buttons
+        value:[
+            "Hello World!",
+            {class:"btn",id:"Click Me"},
+            {class:"hold",id:"Hold Me"},
+            {class:"btn",id:"UI Info"}
+        ]
+    });
+});
+
+// when button "Click Me" is clicked
+app.event({u:"Click Me"},event=>{
+    app.display({
+        add:[
+            'You clicked the "Click Me" button!'
+        ]
+    });
+});
+
+
+// when button "Hold Me" is toggled
+app.event({u:"Hold Me"},event=>{
+    app.display({
+        add:[
+            // depending on whether the hold button is pressed or let go
+            //  (event.v refers to the value of user-event target element;
+            //   when a hold-down button is down, its value is true;
+            //   when a hold-down button is released, its value is false)
+            event.v?
+                'You are holding the "Hold Me" button.'
+                :'You let go of the "Hold Me" button.'
+        ]
+    })
+});
+
+// when "UI Info" button is clicked, display modal popup with uiInfo
+app.event({u:"UI Info"},event=>{
+    app.display({
+        add:[
+            {
+                id: "Your UI",
+                class: "win",
+                modal: 1,
+                closeable: 1,
                 value:[
-                    "Hello World!",
-                    {
-                        id: "Your UI",
-                        value:[
-                            {id:"UINL user-agent software",value:event.userAgent},
-                            {id:"Platform",value:event.platform},
-                            {id:"Screen size",value:event.screen?`${event.screen.width}x${event.screen.height}`:""},
-                            {id:"Available window size",value:event.wh?`${event.wh[0]}x${event.wh[1]}`:""},
-                            {id:"Your system time",value:''+new Date(event.time)},
-                        ]
-                    },
-                    {class:"btn",id:"Click Me"},
-                    {class:"hold",id:"Hold Me"}
+                    {id:"UINL user-agent software",value:uiInfo.userAgent},
+                    {id:"Platform",value:uiInfo.platform},
+                    {id:"Screen size",value:uiInfo.screen?`${uiInfo.screen.width}x${uiInfo.screen.height}`:""},
+                    {id:"Available window size",value:uiInfo.wh?`${uiInfo.wh[0]}x${uiInfo.wh[1]}`:""}
                 ]
-            });
-        }else if(event.u==="Click Me"){
-            // when button "Click Me" is clicked
-            //  (event.u refers to the unique id of user-event target element)
-            app.display({
-                add:[
-                    'You clicked the "Click Me" button!'
-                ]
-            })
-        }else if(event.u==="Hold Me"){
-            // when button "Hold Me" is toggled
-            //  (event.u refers to the unique id of user-event target element)
-            app.display({
-                add:[
-                    // depending on whether the hold button is pressed or let go
-                    //  (event.v refers to the value of user-event target element;
-                    //   when a hold-down button is down, its value is true;
-                    //   when a hold-down button is released, its value is false)
-                    event.v?
-                        'You are holding the "Hold Me" button.'
-                        :'You let go of the "Hold Me" button.'
-                ]
-            })
-        }
-    }
+            }
+        ]
+    });
+});
+
 </script></head><body></body></html>

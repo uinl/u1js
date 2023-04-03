@@ -1,24 +1,26 @@
 <html><head>
 <script src="u1.js"></script>
 <script>
-    function userEvent(event){
-        if(event.t===0){
-            // on handshake
-            //  (event.t refers to time since handshake; event.t is 0)
-            app.display({
-                value:[ // value (or v) sets the value/content
-                    "Hello World!",             // add "Hello World!" text
-                    {class:"btn",id:"Click Me"} // add "Click Me" button
-                ]
-            });
-        }else if(event.u==="Click Me"){
-            // when button "Click Me" is clicked
-            //  (event.u refers to unique id of user-event target element)
-            app.display({
-                add:[ // add (or A) adds to current value/content
-                    'You clicked the "Click Me" button!'
-                ]
-            })
-        }
-    }
+
+// on start
+app.start(event=>{
+    app.display({
+        value:[ // value (or v) sets the value/content
+            'Hello World!',             // add 'Hello World!' text label
+            {class:'btn',id:'Click Me'} // add 'Click Me' button
+        ]
+    });
+});
+
+// when button "Click Me" is clicked
+//   u refers to unique id of user-event target element
+//   v refers to the value of target element (for a button v:true signifies a click)
+app.event({u:'Click Me',v:true},event=>{
+    app.display({
+        add:[ // add (or A) adds to current value/content
+            'You clicked the "Click Me" button!' // add text label
+        ]
+    })
+});
+
 </script></head><body></body></html>

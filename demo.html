@@ -171,78 +171,104 @@ var SAMPLE_UINL = new Map([
 
 var lastValue;
 
+app.start(event=>{
+    app.display({
+        caption:'UINL Demo',
+        require:{c:['grid','opt','doc'],fmt:['mkdn'],caption:[]},
+        style:`
+            #Preview {padding:5px}
+            #Warning {text-align:right;}
+            #Warning * {display:inline}
 
-function userEvent(event){
-    var itemId=event.u,itemValue=event.v,uinl,display={Q:[]};
-    if(event.t<=1){  // on handshake
-        display.caption='UINL demo';
-        display.require={c:['grid','opt','doc'],fmt:['mkdn'],caption:[]};
-        display.style=`
-                #Preview {padding:5px}
-                #Warning {text-align:right;}
-                #Warning * {display:inline}
-
-                #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray}
-                #Warning {color:#a00}
-                #Warning>.title:after {content:":"}
-                @media (prefers-color-scheme: dark) {
-                    #Preview {background:linear-gradient(to bottom right,#182028 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
-                    #Warning {color:#d22}
-                }
-            `;
-        display.v=[
-            {id:"Preview"},
-            {id:"Sample Code",v:[...SAMPLE_UINL.keys()].map(x=>({id:x,c:'btn'}))},
-            {id:"UINL",cap:"APP→UI message (presuming a blank display)",v:"\n",in:1,on:{v:[]}}
-        ];
-    }else{
-        display.Q=[];
-        display.Q.push({U:'UI→APP message',v:null});
-        let addItems=[];
-        if(itemId=='UINL'){
-            try{
-                uinl=JSON.parse(itemValue);
-                if(uinl.constructor===Object){
-                    itemValue=JSON.stringify(uinl);
-                    if(itemValue!==lastValue){
-                        lastValue=itemValue;
-                        uinl.id='Preview';
-                        uinl.i=0;
-                        // display.Q.push(uinl);
-                        display.Q.push({U:'Warning',v:null});
-                        display.Q.push({U:'Preview',v:null});
-                        addItems.push(uinl);
-                    }
-                }else{
-                    display.Q.push({U:'Warning',v:null});
-                    display.Q.push({id:'Warning',v:'APP→UI message must be a JSON object.'});
-                }
-            }catch(e){
-                if(e.message.includes('JSON')){
-                    display.Q.push({U:'Warning',v:null});
-                    addItems.push({id:'Warning',v:'Invalid JSON string'});
-                }else{
-                    throw(e);
-                }
+            #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray}
+            #Warning {color:#a00}
+            #Warning>.title:after {content:":"}
+            @media (prefers-color-scheme: dark) {
+                #Preview {background:linear-gradient(to bottom right,#182028 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
+                #Warning {color:#d22}
             }
-        }else if(SAMPLE_UINL.has(itemId)){
-            lastValue=SAMPLE_UINL.get(itemId);
-            display.Q.push({U:'UINL',v:lastValue});
-            uinl=JSON.parse(lastValue);
-            uinl.id='Preview';
-            uinl.i=0;
-            display.Q.push({U:'Warning',v:null});
-            display.Q.push({U:'Preview',v:null});
-            addItems.push(uinl);
-        }else if('!' in event){
-            display.Q.push({U:'Warning',v:null});
-            addItems.push({id:'Warning',v:event['!']});
+        `,
+        v:[
+            {id:"Preview"},
+            {id:"Sample Code",v:[...SAMPLE_UINL.keys()].map(x=>({id:x,class:'btn'}))},
+            {id:"UINL",caption:"APP→UI message (presuming a blank display)",value:"\n",input:1,on:{value:[]}}
+        ]
+    });
+});
+
+app.event({u:'UINL'},event=>{
+    try{
+        var uinl=JSON.parse(event.v);
+        if(uinl.constructor===Object){
+            event.v=JSON.stringify(uinl);
+            if(event.v!==lastValue){
+                lastValue=event.v;
+                uinl.id='Preview';
+                uinl.i=0;
+                app.display({
+                    queue:[
+                        {U:'Warning',v:null},
+                        {U:'Preview',v:null},
+                        {add:[uinl]}
+                    ]
+                });
+            }else{
+                app.display({U:'Warning',v:null});
+            }
         }else{
-            addItems.push({id:'UI→APP message',v:JSON.stringify(event)});
+            app.display({
+                queue:[
+                    {U:'Warning',v:null},
+                    {add:[{id:'Warning',v:'APP→UI message must be a JSON object.'}]}
+                ]
+            });
         }
-        display.Q.push({add:addItems});
+    }catch(e){
+        if(e.message.includes('JSON')){
+            app.display({
+                queue:[
+                    {U:'Warning',v:null},
+                    {add:[{id:'Warning',v:'Invalid JSON string'}]}
+                ]
+            });
+        }else{
+            throw(e);
+        }
     }
-    app.display(display);
-}
+});
+
+app.event({},event=>{
+    if(SAMPLE_UINL.has(event.u)){
+        lastValue=SAMPLE_UINL.get(event.u);
+        var uinl=JSON.parse(lastValue);
+        uinl.id='Preview';
+        uinl.i=0;
+        app.display({
+            queue:[
+                {U:'UINL',v:lastValue},
+                {U:'UI→APP message',v:null},
+                {U:'Warning',v:null},
+                {U:'Preview',v:null},
+                {add:[uinl]}
+            ]
+        });
+    }else if('error' in event){
+        app.display({
+            queue:[
+                {U:'UI→APP message',v:null},
+                {U:'Warning',v:null},
+                {add:[{id:'Warning',v:event.error}]}
+            ]
+        });
+    }else{
+        app.display({
+            queue:[
+                {U:'UI→APP message',v:null},
+                {add:[{id:'UI→APP message',v:JSON.stringify(event)}]}
+            ]
+        });
+    }
+});
+
 </script>
 </html>

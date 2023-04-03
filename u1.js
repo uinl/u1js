@@ -962,7 +962,6 @@ addCSS(`
 [c='bin']:not(tr)[id]:not([cap='']):not([y]) , [c='bin']:not(tr)[cap]:not([cap='']):not([y]) {margin-top:1.5em}
 [c='bin']:not(tr) > .title:empty {display:none}
 [c='bin']:not(tr) > .title:not(empty) {position:absolute;bottom:100%;border-bottom:solid 1px var(--colorBorder);}
-[c='bin']:not(tr) > .content {display:block}
 `);
 gui.Bin=class extends gui._Container{};
 gui.Bin.prototype._classDefaults={c:'bin',v:[]};
@@ -1267,8 +1266,8 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 		}
 		gui.resetDisplay();
 		//connect to app
-		if(!window.app)window.app={};
-		if(window.userEvent || app.userEvent){
+		
+		if(window.userEvent || app.userEvent || app._eventHandlers){
 			//if app code is client-side script...
 			connectToTaskScript();
 		}else if(location.params.l || app.location){
@@ -1282,7 +1281,7 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 			//TODO: allow location of .js script
 		}else{
 			//TODO: change this to allow entering task location
-			gui({v:['Hey there...',{id:'Intersted in the UINL?',v:"http://uinl.github.io/"}]});
+			gui({v:['Hey there...',{id:'Interested in the UINL?',v:"http://uinl.github.io/"}]});
 		}
 	}
 	function onTaskConnect(){
@@ -1296,12 +1295,32 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 			t:0
 		};
 		logline(msg);
-		// gui.startTime=Date.now()-1000;		// mark start-time
 		gui.userEvent(msg);				// send handshake message to initiate app
 	}
+	if(!window.app)window.app={};
+	app.event=function(eventQuery,handler){
+		if(!app._eventHandlers)app._eventHandlers=[];
+		app._eventHandlers.push([eventQuery,handler]);
+	}
+	app.start=function(handler){
+		if(!app._eventHandlers)app._eventHandlers=[];
+		app._eventHandlers.push([{t:0},handler]);
+	}
 	function connectToTaskScript(){
-		//	connect gui.userEvent to app.userAction
-		gui.userEvent=app.userEvent || userEvent;
+		//	connect gui.userEvent or handlers specified via event/start functions to app.userAction
+		if(app && app._eventHandlers){
+			const matchQuery=(obj,query)=>Object.entries(query).every(kv=>kv[1]===obj[kv[0]]);
+			gui.userEvent=function(e){
+				for(let [eventQuery,handler] of app._eventHandlers){
+					if(matchQuery(e,eventQuery)){
+						handler(e);
+						break;
+					}
+				}
+			}
+		}else{
+			gui.userEvent=app.userEvent || userEvent;
+		}
 		//	connect app.display to gui.update;
 		app.display=gui.display=gui.appEvent;
 		//	start app
@@ -1800,7 +1819,7 @@ addCSS(`
 [fold='1']>.title>.controlFold:before {content:'-'}
 [fold='2']>.title>.controlFold:before {content:'+'}
 .controlClose:hover {background-color:f33}
-.controlClose:before {content:'×'}
+.controlClose:before {content:'\\00d7'}
 `);
 gui.Bin.prototype.fold=function(v){
 	if(v && !this._manFold){
@@ -1821,8 +1840,8 @@ gui.Bin.prototype.fold=function(v){
 	}
 }
 gui.Bin.prototype._userClosed=function(){
-	if(this._prop.on && this._prop.on.v && (this._prop.on.v.length===0 || this._prop.on.v.includes(null)))
-		this._sendMsg({v:null});
+	// if(this._prop.on && this._prop.on.v && (this._prop.on.v.length===0 || this._prop.on.v.includes(null)))
+	this._sendMsg({v:null});
 	this._parent._removeChild(this);
 }
 gui.Bin.prototype.cls=function(v){
@@ -2217,7 +2236,7 @@ gui.Doc.prototype._classDefaults={c:'doc',v:''};
 //////////////////////////////////////////////////////////////////////////////
 // win
 addCSS(`
-glass:last-of-type {z-index:1;position:absolute;top:0px;left:0px;background-color:rgba(255,255,255,.5);pointer-events:all}
+glass:last-of-type {z-index:1;position:absolute;top:0px;left:0px;background-color:rgba(255,255,255,.3);pointer-events:all;min-height:100%;min-width:100%}
 [c='win'] {z-index:1;position:absolute;width:350;height:250;max-width:90vw;max-height:90vh;border:solid 1px var(--colorBorder);border-radius:4px;padding:0px;background-color:var(--color0);box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);display:flex;flex-direction:column;overflow:auto;resize:both}
 [c='win']>.title {padding:5px; background:linear-gradient(#fff,#fff,#fff,#eee,#ddd)}
 [c='win']>.frame {margin:1em}
@@ -2225,22 +2244,6 @@ glass:last-of-type {z-index:1;position:absolute;top:0px;left:0px;background-colo
 .hasglass {overflow:hidden}
 [c='win']:last-of-type>.title {background:none;background-color:var(--colorTrue)}
 `);
-gui.disableAllUnderGlass=function(){
-	//find top glass and disable everything under it
-	var f=gui.rootContainer._frame,
-		i=f.childElementCount,
-		glassFound=false;
-	while(i--){
-		if(glassFound){
-			gui.disableElement(f.children[i]);
-		}else{
-			if(f.children[i].className==='glass')
-				glassFound=true;
-			else
-				gui.enableElement(f.children[i]);
-		}
-	}
-}
 gui.focusedToTop=function(e){
 	var element=e.currentTarget;
 	if(element._item._prop.i!==element._item._parent._children.length-1){
@@ -2266,10 +2269,35 @@ gui.Win=class extends gui.Bin{
 		dragElement(this._element,this._title,'controlTitle');
 	}
 	_beforeRemove(){
-		if(this._glass)this._glass.remove();
-		gui.disableAllUnderGlass();
-		this._parent._frame.classList.remove('haswindows','hasglass');
+		// if this window has glass, remove it; and if parent has no more glass, remove hasglass class from it
+		if(this._glass){
+			this._glass.remove();
+			if(this._parent._children.filter(item=>item._glass).length===1){
+				this._parent._frame.classList.remove('hasglass');
+			}
+			this._disableAllUnderGlass();
+		}
+		// if this is the last window in parent, remove haswindows class from it
+		if(this._parent._children.filter(item=>item.constructor===gui.Win).length==1){
+			this._parent._frame.classList.remove('haswindows');
+		}
 		super._beforeRemove();
+	}
+	_disableAllUnderGlass(){
+		//find top glass and disable everything under it
+		var f=this._frame,
+			i=f.childElementCount,
+			glassFound=false;
+		while(i--){
+			if(glassFound){
+				gui.disableElement(f.children[i]);
+			}else{
+				if(f.children[i].tagName==='glass')
+					glassFound=true;
+				else
+					gui.enableElement(f.children[i]);
+			}
+		}
 	}
 	mod(v){
 		if(v && !this._glass){
@@ -2284,7 +2312,7 @@ gui.Win=class extends gui.Bin{
 			this._parent._frame.classList.remove('hasglass');
 			this._glass.remove();
 		}
-		gui.disableAllUnderGlass();
+		this._disableAllUnderGlass();
 	}
 	fold(v){
 		super.fold(v);
@@ -2330,12 +2358,8 @@ gui.Win=class extends gui.Bin{
 			}
 			if(this._glass)
 				parent._frame.insertBefore(this._glass,this._outerElement);
-			gui.disableAllUnderGlass();
+			this._disableAllUnderGlass();
 		}
-	}
-	z(v){
-		this._outerElement.style.zIndex=v;
-		if(this._glass)this._glass.style.zIndex=v;
 	}
 }
 gui.Win.prototype._classDefaults={c:'win',v:[]};
