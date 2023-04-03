@@ -22,20 +22,24 @@ Is u1js just for client-side applications?
 ### Hello World example with client-side JavaScript application code:
 
         <html><head><script src="https://cdn.jsdelivr.net/gh/uinl/u1js/u1.min.js"></script><script>
-            function userEvent(event){
-                if(event.t===0){ // on handshake (event.t is time of event)
-                    app.display({
-                        value:[ "Hello World!" ]
-                    });
-                }
-            }
+            app.start(event=>{
+                app.display({
+                    value:[ 'Hello World!' ],    // display 'Hello World!' text label
+                });
+            });
         </script></head><body></body></html>
+
+See a longer client-side examples with buttons:
+- https://uinl.github.io/u1js/helloworld.html
+- https://uinl.github.io/u1js/helloworld2.html
+- https://uinl.github.io/u1js/demo.html
 
 
 ### Hello World example with server-side application code, using the POST method to send user events:
 
         <html><head><script src="https://cdn.jsdelivr.net/gh/uinl/u1js/u1.min.js"></script><script>
             const app = {
+                method: 'POST',
                 location: 'https://uinldemo.ue.r.appspot.com/'
             }
         </script></head><body></body></html>
