@@ -88,9 +88,9 @@ const IMPLEMENTED={
     df:[],
     fold:[],
     // format type option
-    fmt:['html','mkdn'],
+    fmt:['html','md'],
     // file chooser option
-    accepts:['bin','txt'],
+    accepts:[],
     // win modal option
     mod:[]
 }
@@ -278,9 +278,13 @@ gui.appEventJSON=function(msg){
 
 
 gui.REQUIRED={
-    Mkdn:[
+    "fmt:md":[
         "https://cdn.jsdelivr.net/npm/marked/marked.min.js",
         "gui.markdown=marked;"
+    ],
+    "c:file":[
+        "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+        "gui.ZipArchive=JSZip;"
     ]
 };
 gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
@@ -417,16 +421,16 @@ gui.require=function(require,loaded){
     var propName,propVal;
     if(!loaded){
         //check if anything in REQUIRED, concat all REQUIRED lists, load and rerun this f
-        var toload=[];
+        var toLoad=[];
         for(var propName in require){
-            if(propName in gui.REQUIRED)
-                toload=toload.concat(gui.REQUIRED[propName]);
+            // if(propName in gui.REQUIRED)
+            //     toload.push(...gui.REQUIRED[propName]);
             for(propVal of require[propName])
-                if(propVal in gui.REQUIRED)
-                    toload=toload.concat(gui.REQUIRED[propVal]);
+                if(`${propName}:${propVal}` in gui.REQUIRED)
+                    toLoad.push(...gui.REQUIRED[`${propName}:${propVal}`]);
         }
-        if(toload.length){
-            load(toload,function(){gui.require(require,true)});
+        if(toLoad.length){
+            load(toLoad,function(){gui.require(require,true)});
             return;
         }
     }
@@ -968,8 +972,8 @@ addCSS(`
 [c='bin']:not(tr) > .title:empty {display:none}
 [c='bin']:not(tr) > .title:not(empty) {border-bottom:solid 1px var(--colorBorder);}
 [c='bin']:not(tr) {display:flex;flex-direction:column}
-.title {flex-grow:0}
-.frame {flex-grow:1}
+[c]>.title {flex-grow:0}
+[c]>.frame {flex-grow:1}
 `);
 gui.Bin=class extends gui._Container{};
 gui.Bin.prototype._classDefaults={c:'bin',v:[]};
@@ -1113,7 +1117,7 @@ addCSS(`
 [c='num'] > .title:not(:empty):after {content:":"}
 [c='num'] > .content {display:inline-block; }
 
-input[disabled] {background-color:transparent;color:var(--color1)}
+input[disabled] {background-color:transparent !important;color:var(--color1)}
 input:not([disabled]) {border:solid 1px var(--colorBorder)}
 
 [c='num'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:text-bottom}
@@ -1197,11 +1201,9 @@ gui.Num.prototype._classDefaults={c:'num',v:0};
 addCSS(`
 [c='btn']:hover {background-color:var(--colorFalseHover) !important;}
 [c='btn']:active {background-color:var(--colorTrue) !important;}
-[c='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;}
+[c='btn'] {text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);border-radius:4px;}
 [c='btn'] > * {display:inline-block}
-[c='btn']:not([shp]) {box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3)}
-[c='btn'][shp] {filter:drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.7))}
-[c='btn']:not(:empty),[select="0"]:not(:empty) {min-width:100px;border-radius:4px;}
+[c='btn']:not(:empty),[select="0"]:not(:empty) {min-width:100px}
 [c='btn'][in]:empty {width:1em;height:1em;border-radius:2em;}
 [btnContainer] [c='btn'] {display:none}
 [btnContainer]:hover {background-color:var(--colorFalseHover) !important;}
@@ -2228,7 +2230,7 @@ gui.Doc=class extends gui.Txt{
             gui.Txt.prototype.in.call(this,v); //TODO: change this to prior multiline text input
         }else if(this._content.getAttribute('contenteditable')){
             this._content.removeAttribute('contenteditable');
-            if(this._prop.fmt=='mkdn'){
+            if(this._prop.fmt=='md'){
                 this._content.innerHTML=gui.markdown(this._prop.v);
             }else{
                 this._content.innerHTML=this._prop.v;
@@ -2244,6 +2246,14 @@ gui.Doc.prototype._classDefaults={c:'doc',v:''};
 
 //////////////////////////////////////////////////////////////////////////////
 // file (file chooser)
+addCSS(`
+input::file-selector-button {color:var(--color1);border:solid 1px var(--colorBorder);text-align:center;display:inline-block;padding:.4em;background-color:var(--colorFalse);vertical-align:middle;box-shadow:0px 0px 3px 1px rgba(0, 0, 0, 0.3);border-radius:4px;}
+input::file-selector-button:hover {background-color:var(--colorFalseHover) !important;}
+input::file-selector-button:active {background-color:var(--colorTrue) !important;}
+input[type="file"] {background-color:var(--color0);color:var(--color1);border:none}
+input[disabled]::file-selector-button {opacity:.75;pointer-events:none}
+input:not([disabled])::file-selector-button {border:solid 1px var(--colorBorder)}
+`)
 gui.File=class extends gui.Txt{
     _initContent(){
         this._element=document.createElement('div');
@@ -2257,28 +2267,64 @@ gui.File=class extends gui.Txt{
         this._content.setAttribute("type","file");
         var thisItem = this;
         this._content.onchange = function(e){
+            if(!e.target.files.length)return;
+            if(!isNaN(thisItem._prop.accepts) && (e.target.files.length>thisItem._prop.accepts)){
+                alert(`You have chosen too many files.\nThe maximum number of files you can choose is ${thisItem._prop.accepts}.`);
+                return;
+            }
             var fr=new FileReader();
             var file=e.target.files[0]; // TODO: need to store file.name somewhere
             fr.onload=function(){
                 let fileContent = fr.result;
-                if(thisItem._prop.accepts==='text'){    // process text
+                if(thisItem._prop.accepts==='text'){            // process text
                     thisItem._prop.v=fileContent;
-                }else{                                  // process base64
+                }else if(!isNaN(thisItem._prop.accepts)){       // process zip
+                    zip.file(file.name, fileContent);
+                    if((++fileIndex)<files.length){
+                        file=files[fileIndex];
+                        fr.readAsArrayBuffer(file);
+                    }else{
+                        zip.generateAsync({type:"base64",compression:"DEFLATE",compressionOptions:{level:9}})
+                        .then(zipContent=>thisItem._prop.v=zipContent);
+                    }
+                }else{                                          // process base64
                     thisItem._prop.v=fileContent.slice(fileContent.indexOf(',')+1);
                 }
                 thisItem._sendMsg({v:thisItem._prop.v});
             }
             if(thisItem._prop.accepts==='text'){
-                fr.readAsText(file);            // read as text
+                fr.readAsText(file);                    // read as text
+            }else if(!isNaN(thisItem._prop.accepts)){   // process as zip
+                var fileIndex=0,files=e.target.files;
+                var zip=gui.ZipArchive();
+                fr.readAsArrayBuffer(file);
             }else{
-                fr.readAsDataURL(file);         // read as base64
+                fr.readAsDataURL(file);                 // read as base64
             }
         }
     }
     v(v){}
     in(v){
+        if(v>0){
+            this._content.removeAttribute('disabled');
+        }else{
+            this._content.setAttribute('disabled','');
+        }
     }
-    accepts(v){}
+    accepts(v){
+        if(isNaN(v) || v<2){
+            this._content.removeAttribute('multiple');
+        }else{
+            this._content.setAttribute('multiple','multiple');
+        }
+    }
+    fmt(v){
+        if(v){
+            this._content.setAttribute('accept',v);
+        }else{
+            this._content.removeAttribute('accept');
+        }
+    }
 }
 gui.File.prototype._classDefaults={c:'file',v:''};
 //////////////////////////////////////////////////////////////////////////////
