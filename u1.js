@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230414)';
+const USERAGENT='u1js (v1.1.20230421)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -92,7 +92,9 @@ const IMPLEMENTED={
     // file chooser option
     accepts:[],
     // win modal option
-    mod:[]
+    mod:[],
+    // animation
+    '+v':[],'+v|':[],
 }
 
 
@@ -393,7 +395,7 @@ gui.loop=function(now){
     if(gui.animations.size){
         const deltaTime=(now-gui.ums)/1000;
         for(let ani of gui.animations){
-            gui.animate(deltaTime,ani);
+            gui.animationStep(deltaTime,ani);
         }
     }
     //go through properties added to watch-list via event-capture option "on"
@@ -780,13 +782,6 @@ gui._Item=class{
 //////////////////////////////////////////////////////////////////////////////
 // prototypical gui containers
 gui._Container=class extends gui._Item{
-    // _initContent(){
-    // 	this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-    // 	this._title=this._element.appendChild(document.createElement('div'));			//title (this is where id/title goes)
-    // 	this._frame=this._element.appendChild(document.createElement('div'));			//content frame (overflow:auto so that content can be scrolled)
-    // 	this._content=this._frame.appendChild(document.createElement('div'));			//content
-    // 	this._parent._placeChildElement(this);
-    // }
     _initDefaults(prop){
         this._prop.df=Object.create(this._parent._prop.df); // use parent defaults as a prototype for current defaults
         this._children=[];
@@ -879,6 +874,7 @@ gui._Container=class extends gui._Item{
         }
         super._beforeRemove();
     }
+    _afterMove(){}
     _removeChild(child){
         child._beforeRemove();										//cleanup
         if(child._prop.id)delete this._childmap[child._prop.id];	//remove from _childmap
@@ -1123,15 +1119,6 @@ input:not([disabled]) {border:solid 1px var(--colorBorder)}
 [c='num'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:text-bottom}
 `);
 gui.Num=class extends gui._Item{
-    // _initContent(){
-    // 	this._element=document.createElement('div');									//element container (overflow:visible so that shapes/axes can show)
-    // 	this._frame=this._element;
-    // 	this._title=this._frame.appendChild(document.createElement('div'));				//title (this is where id/title goes)
-    // 	this._content=this._frame.appendChild(document.createElement('input'));			//content (includes value)
-    // 	this._content.type='number';
-    // 	this._content.disabled=true;
-    // 	this._parent._placeChildElement(this);
-    // }
     _display(v,step,offset=0){
         if(step<1)v=v.toFixed(step.toString().split('.')[1].length);
         return v;
@@ -1178,7 +1165,6 @@ gui.Num=class extends gui._Item{
         }
         if(this._prop.step)v=(this._prop.min||0)+Math.round2(v-(this._prop.min||0),this._prop.step);
         this._prop.v=v;
-        // this.in(this._prop.in);
         if(this._content.constructor===HTMLInputElement){
             this._content.value=this._display(v,this._prop.step,this._prop.min||0);
             if(this._lastLength!==this._content.value.length)
@@ -1402,7 +1388,6 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
 
 
 
-// TODO: rectx recty should be returning position on page, not within viewport
 //////////////////////////////////////////////////////////////////////////////
 // R command (polling / property info request)
 gui._Item.prototype._rectx=function(){return (this._element.getBoundingClientRect().x-this._parent._content.getBoundingClientRect().x)};
@@ -1436,15 +1421,15 @@ gui.INFO={
     wh(item){return [item._rectw(),item._recth()]},
     whc(item){return [item._rectcw(),item._rectch()]}
 }
-gui._Item.prototype.R=async function(v){
+gui._Item.prototype.R=async function(v,msg={}){
     var r={};
     for(var info of v){
         if(info in gui.INFO)r[info]=await gui.INFO[info](this);
-        else if(info.startsWith('+'))r[info]=this._prop[info];
         else r[info]=this._prop[info];
         if(r[info]===undefined)r[info]=null;
     }
-    this._sendMsg({r:r});
+    msg.r=r;
+    this._sendMsg(msg);
 }
 //////////////////////////////////////////////////////////////////////////////
 
@@ -1485,6 +1470,7 @@ gui._Item.prototype.i=function(v){
             parent._children[i]._prop.i=i;
         }
     }
+    parent._afterMove();
 };
 gui._Item.prototype.tip=function(v){
     this._content.setAttribute('title',v);
@@ -1537,30 +1523,6 @@ gui._Item.prototype._beforeRemove=function(){
     }
 }
 gui._Item.prototype.ctx=function(v){
-    // TODO: 
-    //	add ctxOpt "hideOn" functionality
-    //	hold-button should probly not send false event until ctx menu is closed
-    //	"opt" inside "ctx" loses its class when it's part of defaults for btn/hold, but not for other items
-        // {"df":{"ctx":{"value":[
-        // 	"This is a context menu",
-        // 	{"c":"opt","id":"Select Me"},
-        // 	{"c":"btn","id":"Menu Option 1"},
-        // 	{"c":"btn","id":"Menu Option 2"},
-        // 	{"c":"btn","id":"Menu Option 3"}
-        // ]}},"value":[
-        // "Right-click (or long-tap) on me for menu",
-        // {
-        // "c":"btn",
-        // "id":"bbb",
-        // "ctx":{"toggle":1}
-        // },
-        // {
-        // "c":"hold",
-        // "id":"Hold me for Menu",
-        // "ctx":{"toggle":1}
-        // }
-        // ]}
-    //////
     // remove old context menu bin
     if(this._contextMenuItem){
         this._removeCtxFunctionality();
@@ -1851,7 +1813,6 @@ gui.Bin.prototype.fold=function(v){
     }
 }
 gui.Bin.prototype._userClosed=function(){
-    // if(this._prop.on && this._prop.on.v && (this._prop.on.v.length===0 || this._prop.on.v.includes(null)))
     this._sendMsg({v:null});
     this._parent._removeChild(this);
 }
@@ -2353,21 +2314,15 @@ gui.Win=class extends gui.Bin{
         this._element=document.createElement('win');
         this._title=this._element.appendChild(document.createElement('div'));
         this._frame=this._element.appendChild(document.createElement('div'));
-        // this._content=this._frame.appendChild(document.createElement('div'));
         this._content=this._frame;
         this._parent._content.appendChild(this._element);
-        // this._parent._frame.appendChild(this._element);
         this._outerElement=this._element;
         document.activeElement.blur();
         this._parent._element.classList.add('haswindows');
-        // this._parent._frame.classList.add('haswindows');
         this._parent._childWindowX=(this._parent._childWindowX||0)+25;
         this._parent._childWindowY=(this._parent._childWindowY||0)+25;
         this._element.style.left=this._parent._childWindowX+this._parent._content.scrollLeft;
         this._element.style.top=this._parent._childWindowY+this._parent._content.scrollTop;
-        // this._element.style.left=this._parent._childWindowX+this._parent._frame.scrollLeft;
-        // this._element.style.top=this._parent._childWindowY+this._parent._frame.scrollTop;
-        // this._setAttr('tabindex',0);
         this._element.addEventListener('mousedown',gui.focusedToTop);
         dragElement(this._element,this._title,'controlTitle');
     }
@@ -2430,40 +2385,6 @@ gui.Win=class extends gui.Bin{
             }
         }
     }
-    // i(v){
-    // 	var parent=this._parent;
-    // 	if(v<0){
-    // 		v=this._parent._children.length+v;
-    // 		this._prop.i=v;
-    // 	}
-    // 	if(parent && parent._children[v]!==this){
-    // 		var myindx=parent._children.indexOf(this);
-    // 		if(myindx>-1)
-    // 			parent._children.splice(myindx,1);
-    // 		if(v<parent._children.length){
-    // 			parent._children.splice(v,0,this);
-    // 		}else{
-    // 			parent._children.push(this);
-    // 		}
-    // 		for(var i=0;i<parent._children.length;i++){
-    // 			parent._children[i]._prop.i=i;
-    // 		}
-    // 		var insertBefore;
-    // 		for(var e of parent._frame.children){
-    // 			if(e!==this._outerElement && e.getAttribute('c')==='win' && e._item._getIndex()>v){
-    // 				insertBefore=e;
-    // 			}
-    // 		}
-    // 		if(insertBefore){
-    // 			parent._frame.insertBefore(this._outerElement,insertBefore._item._glass||insertBefore);
-    // 		}else{
-    // 			parent._frame.appendChild(this._outerElement);
-    // 		}
-    // 		if(this._glass)
-    // 			parent._frame.insertBefore(this._glass,this._outerElement);
-    // 		this._disableAllUnderGlass();
-    // 	}
-    // }
     i(v){
         super.i(v);
         if(this._glass)
@@ -2515,7 +2436,17 @@ gui.One=class extends gui.Bin{
             };
         }
     }
-    //TODO: add remove method that gets rid of tab title
+    _afterMove(){
+        this._updateTabTitles();
+    }
+    _removeChild(child){
+        super._removeChild(child);
+        if(child===this._visibleTab){
+            this._visibleTab=this._children[0];
+            this._visibleTab._updateProp('fold',1);
+        }
+        this._updateTabTitles();
+    }
     _newChild(prop){
         var type=gui.getType(prop);
         // only add child if it's a bin
@@ -2564,8 +2495,6 @@ gui.Grid=class extends gui.Bin{
         this._frame=this._element.appendChild(document.createElement('div'));
         this._frame.style.overflow='auto';
         this._content=this._frame.appendChild(document.createElement('table'));
-        this._headerRow=this._content.appendChild(document.createElement('tr'));
-        this._headerRow2=this._content.appendChild(document.createElement('tr'));
         this._parent._placeChildElement(this);
     }
     _newChild(prop){
@@ -2584,24 +2513,6 @@ gui.Grid=class extends gui.Bin{
             p[i].style.transform = translate;
         }
     }
-    // head(v){
-    // 	this._headerRow.innerHTML='';
-    // 	if(v && v.length){
-    // 		var th,colspan;
-    // 		this._headerRow.appendChild(document.createElement('th'));
-    // 		this._headerRow.appendChild(document.createElement('th'));
-    // 		for(var i=0;i<v.length;i++){
-    // 			th=this._headerRow.appendChild(document.createElement('th'));
-    // 			th.innerHTML=v[i];
-    // 			colspan=1;
-    // 			while(v[i]==v[i+1]){
-    // 				colspan++;
-    // 				i++;
-    // 			}
-    // 			if(colspan>1)th.colSpan=colspan;
-    // 		}
-    // 	}
-    // }
     rows(v){
         var row=(new Array(this._prop.cols||1)).fill(0);
         while(v>this._children.length){
@@ -2633,4 +2544,74 @@ gui.GridRow=class extends gui.Bin{
     }
 };
 gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
+// animation
+gui.animationStep=function(deltaTime,animation){
+    const item = animation._item;
+    const velocity = item._prop[animation._velocityPropName];
+    if(item._exists() && typeof(velocity)==='number'){
+        // calculate new property value based on velocity
+        var newValue=animation._currentValue+velocity*deltaTime;
+        // check if min bound was hit
+        var min=typeof(animation.min)==='number'?animation.min:item._prop.min;
+        if(typeof(min)==='number' && newValue<=min){
+            item._stopAnimation(animation,min,velocity);
+            return;
+        }
+        // check if max bound was hit
+        var max=typeof(animation.max)==='number'?animation.max:item._prop.max;
+        if(typeof(max)==='number' && newValue>=max){
+            item._stopAnimation(animation,max,velocity);
+            return;
+        }
+        // update currentValue
+        animation._currentValue=newValue;
+        // update property based on step
+        var step=animation.step||item._prop.step;
+        if(step){
+            if(Math.abs(animation._item._prop[animation._propName]-newValue)>=step){
+                animation._item._prop[animation._propName]=newValue;
+                animation._item[animation._propName](newValue);
+            }
+        }else{
+            animation._item._prop[animation._propName]=newValue;
+            animation._item[animation._propName](newValue);
+        }
+        // adjust for acceleration
+        if(animation['++'] && animation['++'].constructor===Number){
+            item._prop[animation._velocityPropName]+=animation['++']*deltaTime;
+        }
+    }else{
+        gui.animations.delete(animation);
+    }
+}
+
+gui._Item.prototype._stopAnimation=function(animation,value,velocity){
+    gui.animations.delete(animation);
+    animation._item._prop[animation._propName]=animation._currentValue=value;
+    animation._item[animation._propName](value);
+    velocity=velocity.toString()
+    animation._item._prop[animation._velocityPropName]=velocity;
+    if(animation.r){
+        this.R(animation.r,{[animation._velocityPropName]:velocity});
+    }else{
+        this._sendMsg({[animation._velocityPropName]:velocity});
+    }
+}
+gui._Item.prototype._startAnimation=function(propName,velocity){
+    if(typeof(velocity)==='number'){
+        const aniOptionsPropName = '+'+propName+'|';
+        if(!this._prop[aniOptionsPropName])this._prop[aniOptionsPropName]={};
+        var animation = this._prop[aniOptionsPropName];
+        hiddenProp(animation,'_item',this);
+		hiddenProp(animation,'_propName',propName);
+		hiddenProp(animation,'_velocityPropName','+'+propName);
+        hiddenProp(animation,'_currentValue',this._prop[propName]||0);
+        gui.animations.add(animation);
+    }
+}
+gui.Num.prototype['+v']=function(v){this._startAnimation('v',v)}
 //////////////////////////////////////////////////////////////////////////////
