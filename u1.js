@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230421)';
+const USERAGENT='u1js (v1.1.20230507)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -539,7 +539,8 @@ body {background-color:var(--color0);color:var(--color1);font-size:18pt;overflow
 div {position:relative}
 [c] {border-width:0px;border-style:solid;border-color:var(--colorBorder);stroke:var(--color1);fill:none;overflow:visible;z-index:1;margin:3px;margin-left:6px; margin-top:0.5em; min-width:1em;min-height:1em;}
 [c][level="1"] {margin-left:1px}
-.title:not(:empty):not(td) {white-space:nowrap;overflow:visible;user-select:none}
+.title:not(:empty):not(td) {white-space:nowrap;overflow:visible;user-select:none;display:flex}
+.title > span {flex:1 0}
 .title:empty {margin:0px}
 .subcaption {font-size:70%;font-weight:500;text-decoration:underline}
 .content {overflow:hidden;border:none;left:0px;right:0px;font-size:90%}
@@ -1144,7 +1145,7 @@ addCSS(`
 [c='num'] * {display:inline-block;vertical-align:middle}
 [c='num'] > .title:empty {width:0px;height:0px;overflow:hidden}
 [c='num'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
-[c='num'] > .title:not(:empty):after {content:":"}
+[c='num'] > .title:not(:empty) > span:after {content:":"}
 [c='num'] > .content {display:inline-block; }
 
 input[disabled] {background-color:transparent !important;color:var(--color1)}
@@ -1815,7 +1816,7 @@ gui._Item.prototype.on=function(v){
 //////////////////////////////////////////////////////////////////////////////
 // additional bin options
 addCSS(`
-.controlTitle {cursor:pointer;user-select:none;display:inline-block;width:1em;text-align:center;font-family:monospace;overflow:visible !important;background-color:var(--colorFalse);margin-right:1px}
+.controlTitle {cursor:pointer;user-select:none;display:inline-block;width:1em;text-align:center;font-family:monospace;overflow:visible !important;background-color:var(--colorFalse);color:var(--color1);margin-right:1px}
 [fold="2"]>.title {position:relative !important;display:block}
 [fold="2"]>.title:after {content:"...";padding:2px;}
 [fold="2"]>.frame {display:none}
@@ -1957,7 +1958,7 @@ addCSS(`
 [c='dt'] * {display:inline-block;vertical-align:middle}
 [c='dt'] > .title:empty {width:0px;height:0px;overflow:hidden}
 [c='dt'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
-[c='dt'] > .title:not(:empty):after {content:":"}
+[c='dt'] > .title:not(:empty) > span:after {content:":"}
 [c='dt'] > .content {display:inline-block}
 [c='dt'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:bottom}
 `)
@@ -2026,7 +2027,7 @@ addCSS(`
 [c='time'] * {display:inline-block;vertical-align:middle}
 [c='time'] > .title:empty {width:0px;height:0px;overflow:hidden}
 [c='time'] > .title:not(:empty) {border-bottom:solid 1px var(--colorBorder);vertical-align:bottom;margin-top:inherit;margin-right:.75em}
-[c='time'] > .title:not(:empty):after {content:":"}
+[c='time'] > .title:not(:empty) > span:after {content:":"}
 [c='time'] > .content {display:inline-block}
 [c='time'][unit]:after {content: attr(unit);font-size:80%;padding-left:2px;vertical-align:bottom}
 `)
@@ -2594,8 +2595,9 @@ gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
 //////////////////////////////////////////////////////////////////////////////
 // data
 addCSS(`
-[c="data"] {--dpWidth:10px;width:fit-content;border:solid 1px #ddd}
-[c="data"] > .frame {background-color:white;color:#444;overflow:auto}
+[c="data"] {--dpWidth:10px;width:fit-content;border:solid 1px #ddd;background-color:white;color:#444;}
+[c="data"] > .title {text-align:center}
+[c="data"] > .frame {overflow:auto}
 [c="data"] > .frame > .content {width:300;height:200;margin:10px;padding:0px;overflow:visible}
 [c="data"] > .frame > .content {border-left:solid 1px black;border-bottom:solid 1px black;}
 
@@ -2630,14 +2632,14 @@ addCSS(`
 .axisXmarker[style~="left:"] {transform:translateX(-50%)}
 .axisXmarker[style~="right:"] {transform:translateX(50%)}
 .axisXmarker:before {content:'';width:1px;height:7px;background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
-.axisX > .title {text-align:center;position:relative;margin-top:1.2em;width:100%;font-size:10pt}
+.axisX > .title {text-align:center;position:relative;margin-top:1.2em;width:100%;font-size:10pt;display:block !important}
 [c="data"][axisy] > .frame {padding-left:2em;padding-top:1em;}
 .axisY {border:none;right:100%;top:0;height:100%;position:absolute;overflow:visible;width:1.1em;margin:0px;border-right:solid 1px gray}
 .axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px;min-height:10px}
 .axisYmarker[style~="top:"] {transform:translateY(-50%)}
 .axisYmarker[style~="bottom:"] {transform:translateY(50%)}
 .axisYmarker:after {content:'';height:1px;width:7px;background:#444;position:absolute;right:-8px;top:50%;margin:0px;border:none;padding:0px;margin-top:-0.5px}
-.axisY > .title {right:100%;text-align:center;height:100%;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10pt}
+.axisY > .title {right:100%;text-align:center;height:100%;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10pt;display:block !important}
 `)
 gui.Data=class extends gui.Bin{
     _initContent(){
@@ -3044,7 +3046,11 @@ gui.Dp=class extends gui.Num{
             this._element.style.setProperty('--errBottom',parseFloat(this._element.style.getPropertyValue('--errBottom'))-v+'px');
         }
     }
-    //TODO: add i(v) to potentially redraw when index changes
+    i(v){
+        super.i(v);
+        this._parent._redrawX();
+        // this._parent._scheduleAxisXUpdate();
+    }
 }
 gui.Dp.prototype._classDefaults={c:'dp',v:0};
 //////////////////////////////////////////////////////////////////////////////
