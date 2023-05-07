@@ -35,8 +35,9 @@ const IMPLEMENTED={
     // load stylesheet
     style:[],
     // templates
-    tl:[],
-    // search commands
+    // tem:[],
+    // multi-item update commands
+    '<-':[],
     'U*':[],
     'U**':[],
     // request info command
@@ -50,7 +51,8 @@ const IMPLEMENTED={
         'txt', 'doc', 'file',				// text types (string values)
         'num', 'dt', 'time',				// numeric types (number values)
         'btn', 'hold', 'opt',		 		// toggle types (boolean values)
-        'bin', 'grid', 'one', 'win' 		// container types (array values)
+        'bin', 'grid', 'one', 'win',		// container types (array values)
+        'data', 'dp'						// data, data-points
     ],
     cap:[],
     i:[],
@@ -93,8 +95,14 @@ const IMPLEMENTED={
     accepts:[],
     // win modal option
     mod:[],
+    // data and data points
+    plt:['col','xy','line','box','ohlc','bar'],
+    axisx:['cap','v','min','max','step','unit'],
+    axisy:['cap','v','min','max','step','unit'],
+    x:[],err:[],
     // animation
     '+v':[],'+v|':[],
+    '+x':[],'+x|':[],
 }
 
 
@@ -289,9 +297,9 @@ gui.REQUIRED={
         "gui.ZipArchive=JSZip;"
     ]
 };
-gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tl', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
+gui.LONGFORM={'state': 'S', 'queue': 'Q', 'update': 'U', 'add': 'A', 'class': 'c', 'value': 'v', 'time': 'T', 'trigger': 'Tr', 'timeDelay': 'Td', 'timeInterval': 'Ti', 'timingName': 'Tn', 'timingCancel': 'Tc', 'request': 'R', 'updateChildren': 'U*', 'updateDeep': 'U**', 'move': 'M', 'addTags': 'Atag', 'async': '@', 'templates': 'tem', 'caption': 'cap', 'contextMenu': 'ctx', 'scrollX': 'sx', 'scrollY': 'sy', 'index': 'i', 'effect': 'ef', 'affect': 'af', 'reference': 'ref', 'input': 'in', 'onEvent': 'on', 'throttle': 'throt', 'focus': 'fcs', 'keyShortcuts': 'keys', 'movable': 'mv', 'movableDeep': 'mv*', 'deletable': 'del', 'closeable': 'cls', 'reorderable': 'ro', 'goButton': 'go', 'encrypt': 'enc', 'markText': 'mark', 'foldable': 'fold', 'size': 'wh', 'defaults': 'df', 'logScale': 'log', 'length': 'len', 'optionGroup': 'grp', 'holdGroup': 'hgrp', 'modal': 'mod', 'location': 'xy', 'columns': 'cols', 'headerRow': 'head', 'hexGrid': 'hex', 'format': 'fmt', 'plotType': 'plt', 'errorBar': 'err', 'errorBarBottom': 'err2', 'width': 'w', 'height': 'h', 'rotation': 'rot', 'shape': 'shp', 'opaque': 'opq', 'scaleX': 'x^', 'scaleY': 'y^', 'direction': 'dir', 'depth': 'd', 'rotationX': 'rx', 'rotationY': 'ry', 'scaleZ': 'z^', 'overlap': 'ovr', 'frameset': 'fs', 'frame': 'f', '+frame': '+f', '+value': '+v', '+scrollX': '+sx', '+scrollY': '+sy', '+width': '+w', '+height': '+h', '+rotation': '+rot', '+scaleX': '+x^', '+scaleY': '+y^', '+frameOptions': '+f|', '+valueOptions': '+v|', '+scrollXOptions': '+sx|', '+scrollYOptions': '+sy|', '+xOptions': '+x|', '+yOptions': '+y|', '+widthOptions': '+w|', '+heightOptions': '+h|', '+rotationOptions': '+rot|', '+scaleXOptions': '+x^|', '+scaleYOptions': '+y^|', '+depth': '+d', '+rotationX': '+rx', '+rotationY': '+ry', '+scaleZ': '+z^', '+depthOptions': '+d|', '+zOptions': '+z|', '+rotationXOptions': '+rx|', '+rotationYOptions': '+ry|', '+scaleZOptions': '+z^|'};
 gui.TYPES={};
-gui.NO_ATTR=new Set(['error','style','require','open','A','Atag','Q','R','S','T','Td','U','U*','U**','+v','+x','+y','+w','+h','df','on','throt']);
+gui.NO_ATTR=new Set(['error','style','require','open','A','Atag','Q','R','S','T','Td','U','U*','U**','<-','+v|','+x|','+y|','+w|','+h|','df','on','throt']);
 
 gui.resetDisplay=function(){
     document.body.innerHTML='';
@@ -299,6 +307,7 @@ gui.resetDisplay=function(){
     gui.rootContainer=new gui.Root({},document.body);
     document.body._item=gui.rootContainer;
     window._item=gui.rootContainer;
+    document.body.appendChild(darkModeIcon);
 }
 // gui.ums=function(){return Date.now()-gui.startTime;};
 gui.ums=0;
@@ -468,6 +477,29 @@ gui.require=function(require,loaded){
 
 
 //////////////////////////////////////////////////////////////////////////////
+// dark mode control
+if(localStorage.darkModePreferred===undefined){ // save dark-mode preference
+    localStorage.darkModePreferred=window?.matchMedia?.('(prefers-color-scheme:dark)')?.matches?'yes':'';
+}
+document.documentElement.setAttribute("theme", localStorage.darkModePreferred?"dark":"light");
+const darkModeIcon=document.createElement('span');
+darkModeIcon.style="position:fixed;bottom:0px;right:0px;font-size:12px;padding:1px;cursor:pointer;";
+darkModeIcon.innerText=localStorage.darkModePreferred?'🌖':'🌒';
+darkModeIcon.onclick=()=>{
+    if(localStorage.darkModePreferred){  // dark mode switching to light mode
+        document.documentElement.setAttribute("theme", "light");
+        localStorage.darkModePreferred="";
+        darkModeIcon.innerText='🌒';
+    }else{                               // light mode switching to dark mode
+        document.documentElement.setAttribute("theme", "dark");
+        localStorage.darkModePreferred="yes";
+        darkModeIcon.innerText='🌖';
+    }
+}
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
 // prototypical gui item
 addCSS(`
 :root {
@@ -482,21 +514,21 @@ addCSS(`
 --colorInputText: #444;
 --colorLink: #06f;
 }
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color0: #182028;
-        --color1: #ccc;
-        --colorHead: #245;
-        --colorBorder: #333;
-        --colorFalse: #444;
-        --colorFalseHover: #555;
-        --colorTrue: #224058;
-        --colorInput: #eee;
-        --colorInputText: #000;
-        --colorLink: #06d;
-    }
+[theme="dark"] {
+    --color0: #182028;
+    --color1: #ccc;
+    --colorHead: #245;
+    --colorBorder: #333;
+    --colorFalse: #444;
+    --colorFalseHover: #555;
+    --colorTrue: #224058;
+    --colorInput: #eee;
+    --colorInputText: #000;
+    --colorLink: #06d;
 }
-* {scrollbar-width:thin;box-sizing:border-box;z-index:1;}
+* {scrollbar-width:thin;box-sizing:border-box;z-index:1;white-space:pre-wrap}
+*:before {box-sizing:border-box}
+*:after {box-sizing:border-box}
 scrollbar {width:5px;height:5px;}
 a {color:var(--colorLink);cursor:pointer;text-decoration:underline}
 ::-webkit-scrollbar {width:5px;height:5px;}
@@ -627,11 +659,12 @@ gui._Item=class{
                 this._updateProp('v',prop.v);
                 delete prop.v;
             }
-            // process all other properties that aren't animation
+            // save R and Q commands for last
             let r=prop.R;											//if there is an R command, save it for later
             if(r)delete prop.R;
             let q=prop.Q;											//if there is an Q command, save it for later
             if(q)delete prop.Q;
+            // process all other properties that aren't animation
             for(var propName in prop){
                 if(!propName.startsWith('+'))
                     this._updateProp(propName,prop[propName]);
@@ -681,8 +714,6 @@ gui._Item=class{
     _refreshProp(propName,propVal){
         try{
             if(this[propName]){
-                //run the class-specific property function
-                this[propName](propVal);
                 //set DOM attribute
                 if(propName==='v'){
                     if(propVal.constructor===Boolean)this._setAttr('v',propVal);
@@ -692,6 +723,8 @@ gui._Item=class{
                         this._setAttr(propName,propVal);
                     }catch(e){}
                 }
+                //run the class-specific property function
+                this[propName](propVal);
             }
         }catch(e){
             console.error(e.stack);
@@ -1025,6 +1058,7 @@ gui.Root=class extends gui._ContainerWithNoParent{
             }, 0); 
         }
     }
+    //TODO: tem(v){...}
     cap(v){document.title=(v===null||v===undefined)?'':v;}
 };
 gui.Root.prototype._classDefaults={c:'bin',v:[]};
@@ -1038,7 +1072,7 @@ addCSS(`
 [c='txt'] > .content {white-space:pre-wrap}
 [c='txt'][id] > .content {margin-left:.5em}
 [c='txt'][cap]:not([cap='']) > .content {margin-left:.5em}
-textarea {white-space:pre;min-height:8ex;max-height:28ex;width:40em;max-width:calc(100% - 0.5em);font-size:11pt;border:solid 1px var(--colorBorder) !important}
+textarea {white-space:pre;min-height:8ex;max-height:28ex;width:40em;max-width:calc(100% - 0.5em) !important;font-size:11pt;border:solid 1px var(--colorBorder) !important}
 `);
 function autoHeight(element){
     if(element.constructor===HTMLTextAreaElement){
@@ -1120,8 +1154,7 @@ input:not([disabled]) {border:solid 1px var(--colorBorder)}
 `);
 gui.Num=class extends gui._Item{
     _display(v,step,offset=0){
-        if(step<1)v=v.toFixed(step.toString().split('.')[1].length);
-        return v;
+        return v.toFixed(Math.max(step?.toString().split('.')[1]?.length||0, offset?.toString().split('.')[1]?.length||0));
     }
     in(v){
         if(v && v>0){
@@ -1263,7 +1296,6 @@ gui.Btn.prototype._classDefaults={c:'btn',v:false};
         }
         gui.resetDisplay();
         //connect to app
-        
         if(window.userEvent || app.userEvent || app._eventHandlers){
             //if app code is client-side script...
             connectToTaskScript();
@@ -1437,8 +1469,8 @@ gui._Item.prototype.R=async function(v,msg={}){
 //////////////////////////////////////////////////////////////////////////////
 // additional item properties
 addCSS(`
-.tooltiptext {visibility:hidden;background-color:black;text-align:left;border-radius:0px;padding:5px;margin:0px;position:fixed;bottom:0px;left:0px;z-index:999;padding:5px;margin:0px;color:#ddd;font-size:9pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
-.tooltiptext::first-line {font-weight:bold}
+.tooltiptext {visibility:hidden;background-color:var(--color1);color:var(--color0);text-align:left;border-radius:3px;padding:0.5em 1em 0.5em 1.5em;margin:3px;position:fixed;bottom:3px;left:3px;z-index:999;font-size:12pt;font-family:Arial;text-shadow:none;white-space:pre-wrap}
+.tooltiptext:before {content:'💡';position:absolute;left:0px;top:5px}
 `);
 gui.tooltipOn=function(e){
     if(!gui.tooltip){
@@ -1473,13 +1505,13 @@ gui._Item.prototype.i=function(v){
     parent._afterMove();
 };
 gui._Item.prototype.tip=function(v){
-    this._content.setAttribute('title',v);
+    // this._content.setAttribute('title',v);
     if(v){
         this._element.addEventListener('mouseenter',gui.tooltipOn);
         this._element.addEventListener('mouseleave',gui.tooltipOff);
     }else{
-        this._element.removeEventListener(gui.tooltipOn);
-        this._element.removeEventListener(gui.tooltipOff);
+        this._element.removeEventListener('mouseenter',gui.tooltipOn);
+        this._element.removeEventListener('mouseleave',gui.tooltipOff);
     }
 }
 gui._Item.prototype.ef=function(v){
@@ -1827,6 +1859,18 @@ gui.Bin.prototype.cls=function(v){
     }else if(this._manClose){
         this._manClose.remove();
         delete this._manClose;
+    }
+}
+gui.Bin.prototype['<-']=function(v){
+    if(v && v.constructor===Object){
+        for(var propName in v){
+            var values=v[propName];
+            if(values && values.constructor===Array){
+                for(var i=0;i<this._children.length&&i<values.length;i++){
+                    this._children[i]._updateProp(propName,(values[i]));
+                }
+            }
+        }
     }
 }
 //////////////////////////////////////////////////////////////////////////////
@@ -2548,6 +2592,465 @@ gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
 
 
 //////////////////////////////////////////////////////////////////////////////
+// data
+addCSS(`
+[c="data"] {--dpWidth:10px;width:fit-content;border:solid 1px #ddd}
+[c="data"] > .frame {background-color:white;color:#444;overflow:auto}
+[c="data"] > .frame > .content {width:300;height:200;margin:10px;padding:0px;overflow:visible}
+[c="data"] > .frame > .content {border-left:solid 1px black;border-bottom:solid 1px black;}
+
+[c="data"] svg {position:absolute;top:0px;left:0px;width:100%;height:100%;}
+
+[c="dp"] {position:absolute;background-color:rgba(50,50,50,0.5);min-width:2px;min-height:2px;transform:translateX(-50%);margin:0px;}
+[c="dp"] .title > span {padding-left:3px;}
+
+[c="data"]:not([plt="xy"]):not([plt="line"]):not([plt="box"]):not([plt="ohlc"]):not([plt="bar"]) [c="dp"] {bottom:0;width:var(--dpWidth)}
+
+[plt="xy"] [c="dp"],[plt="line"] [c="dp"] {width:1px;height:1px;border-radius:100%;transform:translate(-50%,50%);}
+[plt="xy"] [c="dp"] {border:solid 3px rgba(50,50,50,0.5)}
+[plt="bar"] [c="dp"] {height:1em;transform:none;border-right:solid 1px black;}
+[plt="bar"] > .frame > .content {height:1em}
+
+[c="data"]:not([plt="bar"]):not([plt="ohlc"]) [c="dp"]:before {content:'';width:1px;height:var(--errTop);background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
+[c="data"]:not([plt="bar"]):not([plt="ohlc"]):not([plt="col"]) [c="dp"]:after {content:'';width:1px;height:var(--errBottom);background:#444;position:absolute;top:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
+
+[plt="box"] [c="dp"] {border-radius:0;width:var(--dpWidth);transform:translateX(-50%) translateY(var(--boxBottomSize));}
+
+[plt="ohlc"] [c="dp"] {width:7px;background-color:transparent;border-color:green;--af:0px}
+[plt="ohlc"] [c="dp"] > .frame {width:7px;height:1px;border-color:inherit;border-width:1px;border-bottom-style:solid;display:block}
+[plt="ohlc"] [c="dp"]:before {content:'';background-color:transparent;border-color:inherit;border-width:1px;border-right-style:solid;width:4.5px;display:block;height:var(--errTop);position:absolute;bottom:calc(1px - var(--af));left:-1.5px}
+[plt="ohlc"] [c="dp"][af]:before {border-bottom-style:solid}
+[plt="ohlc"] [c="dp"]:after {content:'';background-color:transparent;border-color:inherit;border-width:1px;border-right-style:solid;width:3.5px;display:block;height:var(--errBottom);position:absolute;top:calc(1px + var(--af));left:0px;}
+[plt="ohlc"] [c="dp"][af="0"] , [plt="ohlc"] [c="dp"]:not([af]) {border-color:black}
+[plt="ohlc"] [c="dp"][af^="-"] {border-color:red}
+
+[c="data"][axisx] > .frame {padding-bottom:2em}
+.axisX {height:2.5em;border:none;left:0px;top:100%;width:100%;position:absolute;margin:0px;overflow:visible;border-top:solid 1px gray}
+.axisXmarker {position:absolute;font-size:10px;top:3px;margin:0px;border:none;padding:0px;min-width:10px;min-height:10px}
+.axisXmarker[style~="left:"] {transform:translateX(-50%)}
+.axisXmarker[style~="right:"] {transform:translateX(50%)}
+.axisXmarker:before {content:'';width:1px;height:7px;background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
+.axisX > .title {text-align:center;position:relative;margin-top:1.2em;width:100%;font-size:10pt}
+[c="data"][axisy] > .frame {padding-left:2em;padding-top:1em;}
+.axisY {border:none;right:100%;top:0;height:100%;position:absolute;overflow:visible;width:1.1em;margin:0px;border-right:solid 1px gray}
+.axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px;min-height:10px}
+.axisYmarker[style~="top:"] {transform:translateY(-50%)}
+.axisYmarker[style~="bottom:"] {transform:translateY(50%)}
+.axisYmarker:after {content:'';height:1px;width:7px;background:#444;position:absolute;right:-8px;top:50%;margin:0px;border:none;padding:0px;margin-top:-0.5px}
+.axisY > .title {right:100%;text-align:center;height:100%;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10pt}
+`)
+gui.Data=class extends gui.Bin{
+    _initContent(){
+        this._element=document.createElement('div');
+        this._title=this._element.appendChild(document.createElement('div'));
+        this._frame=this._element.appendChild(document.createElement('div'));
+        this._content=this._frame.appendChild(document.createElement('div'));
+        // this._content=this._frame.appendChild(createSVG('svg'));
+        // this._content.setAttribute('viewBox',"0 0 100 100");
+        // this._content.setAttribute('preserveAspectRatio','none');
+        // this._content.setAttribute('width',"100");
+        // this._content.setAttribute('height',"100");
+        this._parent._placeChildElement(this);
+        this._resetRatios();
+    }
+    _resetRatios(){
+        this._padX=10;
+        this._padTop=10;
+        this._minX=0;
+        this._maxX=0;
+        this._minY=0;
+        this._maxY=0;
+        this._pPerX=20;
+        this._pPerY=20;
+    }
+    _initDefaults(prop){
+        super._initDefaults(prop);
+        if(!IMPLEMENTED.plt.includes(prop.plt))prop.plt='col';
+    }
+    _newChild(prop){
+        var type=gui.getType(prop);
+        // only add child if it's a datapoint
+        if(!type || type==gui.Num || type==gui.Dp){
+            var child=new gui.Dp(prop,this);
+            if(!this._children.includes(child))
+                this._children.push(child);
+        }
+    }
+    _scheduleAxisXUpdate(){
+        clearTimeout(this._axisXupdateTimeout);
+        var item=this;
+        this._axisXupdateTimeout=setTimeout(()=>{item._axisXUpdate()},20);
+    }
+    _scheduleAxisYUpdate(){
+        clearTimeout(this._axisYupdateTimeout);
+        var item=this;
+        this._axisYupdateTimeout=setTimeout(()=>{item._axisYUpdate()},20);
+    }
+    _axisXUpdate(){
+        // default min/max
+        if(!this._minX && !this._maxX){
+            this._maxX=this._children.length-1;
+        }
+        // check axisx
+        if(this._prop.axisx){
+            if(typeof(this._prop.axisx.min)==='number')this._minX=this._prop.axisx.min; //TODO: don't do this if there is axisx.v
+            if(typeof(this._prop.axisx.max)==='number')this._maxX=this._prop.axisx.max;
+            this._axisXvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX);
+            this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets[1].length-1];
+        }
+        // calc x-axis spacing
+        var boundRect=this._content.getBoundingClientRect();
+        if(this._prop.plt==='col'||this._prop.plt==='box'){
+            var xs=this._children.map(child=>typeof(child._prop.x)==='number'?child._prop.x:child._getIndex());
+            xs.sort((a,b)=>a-b);
+            var minDist=xs.reduce(([min,last],a)=>[Math.min(min,a-last),a],[9e9,-9e9])[0];
+            var neededSpace=this._maxX-this._minX+minDist;
+            this._pPerX=(boundRect.width-20)/neededSpace;
+            this._padX=10+this._pPerX*minDist/2;
+            this._element.style.setProperty('--dpWidth',this._pPerX*minDist-10);
+        }else if(this._prop.plt==='bar'){
+            this._padX=0;
+            this._pPerX=boundRect.width/(this._maxX-this._minX);
+        }else{
+            this._pPerX=(boundRect.width-20)/(this._maxX-this._minX);
+            this._padX=10;
+        }
+        // redraw based on new spacing
+        console.log('updated','min',this._minX,'max',this._maxX,'ppx',this._pPerX,'boundRect.width',boundRect.width)
+        this._redrawX();
+    }
+    _axisYUpdate(){
+        // check axisy
+        if(this._prop.axisy){
+            if(typeof(this._prop.axisy.min)==='number')this._minY=this._prop.axisy.min; //TODO: don't do this if there is axisy.v
+            if(typeof(this._prop.axisy.max)==='number')this._maxY=this._prop.axisy.max;
+            this._axisYvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisy,this._minY,this._maxY);
+            this._maxY=this._axisYvaluesAndOffsets[1][this._axisYvaluesAndOffsets[1].length-1];
+        }
+        // calc y-axis spacing
+        var boundRect=this._content.getBoundingClientRect();
+        if(this._prop.plt==='bar'){
+            this._padX=0;
+            this._pPerX=boundRect.width/(this._maxX-this._minX);
+        }else{
+            var drawHeight=boundRect.height-this._padTop;
+            this._pPerY=drawHeight/(this._maxY-this._minY);
+        }
+        this._redrawY();
+        // var max=Math.ceil(Math.max(...this._children.map(child=>child._prop.v+(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[0]||0:0)))));
+        // var min=Math.min(0,...this._children.map(child=>child._prop.v-(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[1]||0:0))));
+        // if(pPerY!==this._pPerY || min!==this._minY){
+        // }
+        // console.log(Math.max(...this._children.map(child=>child._prop.v+(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[0]||0:0)))))
+    }
+    _redrawX(){
+        console.log('redrawing','min',this._minX,'max',this._maxX,'ppx',this._pPerX)
+        if(this._axisX)this._drawAxisX();
+        this._children.forEach(child=>child._redrawX());
+    }
+    _redrawY(){
+        if(this._axisY)this._drawAxisY();
+        this._children.forEach(child=>child._redrawY());
+    }
+    _drawLines(){
+        if(!this._svg){
+            this._svg=createSVG('svg');
+            this._content.insertBefore(this._svg,this._content.firstChild);
+        }
+        if(!this._line){
+            this._line=this._svg.appendChild(createSVG('polyline'));
+        }
+        var canvasHeight=this._svg.getBoundingClientRect().height;
+        // var points=this._children.map(child=>[(child._prop.x||child._getIndex())*this._pPerX+this._padX,canvasHeight-child._prop.v*this._pPerY]);
+        var points=this._children.map(child=>[parseFloat(child._element.style.left),canvasHeight-parseFloat(child._element.style.bottom)]);
+        this._line.setAttribute('points',points);
+    }
+    _getAxisValuesOffsets(axisProps,min,max){
+        if(axisProps.v){
+            return [axisProps.v,[...axisProps.v.keys()]];
+        }
+        var offset=[],values=[];
+        var step=axisProps.step||((max-min)/10);
+        console.log(step)
+        for(var val=min;val<max+step;val+=step){
+            values.push((gui.TYPES[axisProps.c]||gui.Num).prototype._display(val,step,min||0));
+            offset.push(val);
+        }
+        // if(!offset.includes(axisSize)){
+        //     values.push('');
+        //     offset.push(axisSize);
+        // }
+        return [values,offset];
+    }
+    _drawAxisX(){
+        //remove old markers
+        for(var i=this._axisX.children.length;i--;){
+            if(this._axisX.children[i].className==='axisXmarker')
+                this._axisX.children[i].remove();
+        }
+        //automatically fill in missing coordinates or values
+        // var axisProps=this._prop.axisx;
+        // var axis=this._getAxisValuesOffsets(axisProps,this._minX,this._maxX);
+        // this._maxX=axis[1][axis.length-1];
+        //add new markers
+        var [values,offsets]=this._axisXvaluesAndOffsets;
+        for(var i=0;i<values.length;i++){
+            var d=this._axisX.appendChild(document.createElement('div'));
+            d.innerHTML=values[i];
+            d.style.left=this._padX+(offsets[i]-this._minX)*this._pPerX;
+            d.setAttribute('title',d.innerHTML);
+            d.classList.add('axisXmarker');
+        }
+        //scroll functionality
+        // if(this._scrollAxisX){
+        //     if(this._frame.offsetWidth>=this._frame.scrollWidth){
+        //         this._scrollAxisX=false;
+        //         this._axisX.style.overflow='visible';
+        //         this._frame.removeEventListener('scroll',gui.scrollAxisX);
+        //     }
+        // }else if(this._frame.offsetWidth<this._frame.scrollWidth){
+        //     this._scrollAxisX=true;
+        //     this._axisX.style.overflow='hidden';
+        //     this._frame.addEventListener('scroll',gui.scrollAxisX);
+        // }
+    }
+    _drawAxisY(){
+        //remove old markers
+        for(var i=this._axisY.children.length;i--;){
+            if(this._axisY.children[i].className==='axisYmarker')
+                this._axisY.children[i].remove();
+        }
+        //automatically fill in missing coordinates or values
+        // var axisProps=this._prop.axisy;
+        // var axis=this._getAxisValuesOffsets(axisProps,this._rectch(),this._prop.ih||this._prop.h||0);
+        //add new markers
+        var [values,offsets]=this._axisYvaluesAndOffsets;
+        for(var i=0;i<values.length;i++){
+            var d=this._axisY.appendChild(document.createElement('div'));
+            d.innerHTML=values[i];
+            d.style.bottom=(offsets[i]-this._minY)*this._pPerY;
+            d.setAttribute('title',d.innerHTML);
+            d.classList.add('axisYmarker');
+        }
+        //scroll functionality
+        // if(this._scrollAxisY){
+        //     if(this._frame.offsetHeight>=this._frame.scrollHeight){
+        //         this._scrollAxisY=false;
+        //         this._axisY.style.overflow='visible';
+        //         this._frame.removeEventListener('scroll',gui.scrollAxisY);
+        //     }
+        // }else if(this._frame.offsetHeight<this._frame.scrollHeight){
+        //     this._scrollAxisY=true;
+        //     this._axisY.style.overflow='hidden';
+        //     this._frame.addEventListener('scroll',gui.scrollAxisY);
+        // }
+    }
+    axisx(v){
+        if(v===null && this._axisX){
+            this._axisX.remove();
+            delete this._axisX;
+        }else if(v && v.constructor===Object){
+            if(!this._axisX){
+                this._axisX=this._content.appendChild(document.createElement('div'));
+                this._axisX.setAttribute('class','axisX');
+            }
+            if(('cap' in v) || ('unit' in v)){
+                var title=v.cap||'';
+                if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
+                if(title){
+                    if(!this._axisX._title){
+                        this._axisX._title=this._axisX.appendChild(document.createElement('div'));
+                        this._axisX._title.setAttribute('class','title');
+                    }
+                    this._axisX._title.innerHTML=title;
+                }else if(this._axisX._title){
+                    this._axisX._title.remove();
+                }
+            }
+            if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v){
+                // if(typeof(v.min)==='number')this._minX=v.min;
+                // if(typeof(v.max)==='number')this._maxX=v.max;
+                // this._axisXvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX);
+                // this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets.length-1];
+                // setTimeout(()=>this._drawAxisX(),5);
+                this._scheduleAxisXUpdate();
+            }
+        }
+    }
+    axisy(v){
+        if(v===null && this._axisY){
+            this._axisY.remove();
+            delete this._axisY;
+        }else if(v && v.constructor===Object){
+            if(!this._axisY){
+                this._axisY=this._content.appendChild(document.createElement('div'));
+                this._axisY.setAttribute('class','axisY');
+            }
+            if(('cap' in v) || ('unit' in v)){
+                var title=v.cap||'';
+                if(v.unit && v.unit[0]!==':')title=title+' ('+v.unit+')';
+                if(title){
+                    if(!this._axisY._title){
+                        this._axisY._title=this._axisY.appendChild(document.createElement('div'));
+                        this._axisY._title.setAttribute('class','title');
+                    }
+                    this._axisY._title.innerHTML=title;
+                }else if(this._axisY._title){
+                    this._axisY._title.remove();
+                }
+            }
+            if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v){
+                // setTimeout(()=>this._drawAxisY(),5);
+                this._scheduleAxisXUpdate();
+            }
+            // this._moveTriggers.axisy=()=>{this._drawAxisY()};
+        }
+    }
+    plt(v){
+        if(v!=='line' && this._svg){
+            this._svg.remove();
+            delete this._svg;
+        }
+        this._children.forEach(item=>item._recalc());
+    }
+}
+gui.Data.prototype._classDefaults={c:'data',v:[]};
+gui.Dp=class extends gui.Num{
+    _initContent(){
+        // this._element=this._frame=this._content=this._title=createSVG('rect');
+        this._element=document.createElement('div');
+        this._title=this._frame=this._content=this._element.appendChild(document.createElement('div'));
+        this._parent._placeChildElement(this);
+    }
+    _recalc(){
+        this.x(this._prop.x);
+        this.v(this._prop.v);
+        this.err(this._prop.err);
+    }
+    _redrawX(){
+        if(this._parent._prop.plt!=='bar')this._element.style.left=this._element.style.width='';
+        this.x(this._prop.x,true);
+    }
+    _redrawY(){
+        this._element.style.bottom=this._element.style.height='';
+        this.v(this._prop.v,true);
+        this.err(this._prop.err,true);
+    }
+    v(v,redraw){
+        //TODO: if(!this._parent._pPerY){this._parent._scheduleAxisYUpdate();return;}
+        this._element.setAttribute('title',v);
+        let p=(v-this._parent._minY)*this._parent._pPerY;
+        let plt=this._parent._prop.plt;
+        if(plt==='xy' || plt==='box' || plt==='ohlc'){
+            this._element.style.bottom=p;
+        }else if(plt==='line'){
+            this._element.style.bottom=p;
+            this._parent._drawLines();
+        }else if(this._parent._prop.plt==='bar'){
+            this._element.style.width=v*this._parent._pPerX;
+            var lastDp=this._element.previousSibling;
+            var left=typeof(this._prop.x)==='number'?this._prop.x:(lastDp?lastDp._item._rightBound:0);
+            this._rightBound=left+v;
+        }else{
+            this._element.style.height=p;
+        }
+        if(!redraw){
+            if(this._parent._prop.plt==='bar'){
+                if(this._rightBound>this._parent._maxX){
+                    this._parent._maxX=left+v;
+                    this._parent._scheduleAxisXUpdate();
+                }
+            }else{
+                var boundsY=this._boundsY||[0,0];
+                if(v+boundsY[0]>this._parent._maxY){
+                    this._parent._maxY=v+boundsY[0];
+                    this._parent._scheduleAxisYUpdate();
+                }
+                if(v-boundsY[1]<this._parent._minY){
+                    this._parent._minY=v-boundsY[1];
+                    this._parent._scheduleAxisYUpdate();
+                }
+            }
+        }
+    }
+    x(v,redraw){
+        //TODO: if(!this._parent._pPerX){this._parent._scheduleAxisYUpdate();return;}
+        if(typeof(v)!=='number'){
+            if(this._parent._prop.plt==='bar'){
+                var prev=this._getIndex()-1;
+                v=this._parent._children[prev]?this._parent._children[prev]._rightBound:0;
+            }else{
+                v=this._getIndex();
+            }
+        }
+        this._element.style.left=this._parent._padX+(v-this._parent._minX)*this._parent._pPerX;
+        if(this._parent._prop.plt==='line')this._parent._drawLines();
+        if(!redraw && typeof(this._parent._prop.axisx?.min)!=='number'){
+            if(v<this._parent._minX){
+                this._parent._minX=v;
+                this._parent._scheduleAxisXUpdate();
+            }
+        }
+        if(!redraw && typeof(this._parent._prop.axisx?.max)!=='number'){
+            if(this._parent._prop.plt==='bar')v+=this._prop.v;
+            if(v>this._parent._maxX){
+                this._parent._maxX=v;
+                this._parent._scheduleAxisXUpdate();
+            }
+        }
+    }
+    err(v,redraw){
+        // TODO: i think err is drawn from end of the point, rather than from its middle, so it should account for size of point
+        if(v){
+            if(v.constructor===Number)v=[v,v];
+            if(v.constructor===Array){
+                if(this._parent._prop.plt==='box'){
+                    this._element.style.setProperty('--boxBottomSize',v[1]*this._parent._pPerY+'px');
+                    this._element.style.height=(v[0]+v[1])*this._parent._pPerY;
+                    this._element.style.setProperty('--errTop',v[2]*this._parent._pPerY);
+                    this._element.style.setProperty('--errBottom',v[3]*this._parent._pPerY);
+                    this._boundsY=[Math.max(v[2],v[0]),Math.max(v[3],v[1])];
+                }else{
+                    this._element.style.setProperty('--errTop',v[0]*this._parent._pPerY);
+                    this._element.style.setProperty('--errBottom',v[1]*this._parent._pPerY);
+                    this._boundsY=[v[0],v[1]];
+                    if(this._prop.af && this._parent._prop.plt==='ohlc'){
+                        this.af(this._prop.af);
+                    }
+                }
+            }
+        }else{
+            this._element.style.setProperty('--errTop',0);
+            this._element.style.setProperty('--errBottom',0);
+            this._element.style.setProperty('--boxBottomSize',0);
+        }
+        if(!redraw){
+            var boundsY=this._boundsY||[0,0];
+            if(this._prop.v+boundsY[0]>this._parent._maxY){
+                this._parent._maxY=this._prop.v+boundsY[0];
+                this._parent._scheduleAxisYUpdate();
+            }
+            if(this._prop.v-boundsY[1]<this._parent._minY){
+                this._parent._minY=this._prop.v-boundsY[1];
+                this._parent._scheduleAxisYUpdate();
+            }
+        }
+    }
+    af(v){
+        if(this._parent._prop.plt==='ohlc'){
+            v*=this._parent._pPerY;
+            this._element.style.setProperty('--af',v+'px');
+            this._element.style.setProperty('--errTop',parseFloat(this._element.style.getPropertyValue('--errTop'))+v+'px');
+            this._element.style.setProperty('--errBottom',parseFloat(this._element.style.getPropertyValue('--errBottom'))-v+'px');
+        }
+    }
+    //TODO: add i(v) to potentially redraw when index changes
+}
+gui.Dp.prototype._classDefaults={c:'dp',v:0};
+//////////////////////////////////////////////////////////////////////////////
+
+
+//////////////////////////////////////////////////////////////////////////////
 // animation
 gui.animationStep=function(deltaTime,animation){
     const item = animation._item;
@@ -2614,4 +3117,7 @@ gui._Item.prototype._startAnimation=function(propName,velocity){
     }
 }
 gui.Num.prototype['+v']=function(v){this._startAnimation('v',v)}
+gui.Num.prototype['+v|']=function(){}
+gui.Dp.prototype['+x']=function(v){this._startAnimation('x',v)}
+gui.Dp.prototype['+x|']=function(){}
 //////////////////////////////////////////////////////////////////////////////

@@ -88,7 +88,7 @@ var SAMPLE_UINL = new Map([
  "there are twenty-five UI component classes in UINL, several of which are container widgets, including table, win (popup), and one (tabs)"
 ]}`],
 
-['tabs', `{"value":[
+    ['tabs', `{"value":[
  {
   "id":"Personnel",
   "class":"one",
@@ -106,7 +106,7 @@ var SAMPLE_UINL = new Map([
  "component class \\"one\\" is used to display a widget with several visible containers of which only one is visible at a time (e.g., tabs, carousel, accordion)"
 ]}`],
 
-['windows', `{"value":[
+    ['windows', `{"value":[
  {
   "id":"Personnel",
   "defaults":{
@@ -165,6 +165,18 @@ var SAMPLE_UINL = new Map([
 
 ]}`],
 
+['data',`{"value":[
+    {
+        "class":"data",
+        "plt":"xy",
+        "value":[3,5,7,1],
+        "<-":{
+            "x":[0.5,2.1,3.2,4.5],
+            "err":[0.1,0.2,0.3,0.15]
+        }
+    }
+]}`]
+
 // TODO: add plot/data, gr, animation
 
 ]);
@@ -184,10 +196,8 @@ app.start(event=>{
             #Preview {background:linear-gradient(to bottom left,white 75%,#dee 85%,#9aa);box-shadow:-1px -1px 1px lightgray}
             #Warning {color:#a00}
             #Warning>.title:after {content:":"}
-            @media (prefers-color-scheme: dark) {
-                #Preview {background:linear-gradient(to bottom right,#182028 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
-                #Warning {color:#d22}
-            }
+            [theme="dark"] #Preview {background:linear-gradient(to bottom right,#182028 75%,#244 85%,#9aa);box-shadow:-1px -1px 1px #555}
+            [theme="dark"] #Warning {color:#d22}
         `,
         v:[
             {id:"Preview"},
