@@ -18,7 +18,7 @@
 "use strict";
 
 
-const USERAGENT='u1js (v1.1.20230507)';
+const USERAGENT='u1js (v1.1.20230821)';
 
 // IMPLEMENTED describes all UINL properties/commands that are implemented here
 const IMPLEMENTED={
@@ -34,8 +34,6 @@ const IMPLEMENTED={
     save:[],
     // load stylesheet
     style:[],
-    // templates
-    // tem:[],
     // multi-item update commands
     '<-':[],
     'U*':[],
@@ -73,7 +71,6 @@ const IMPLEMENTED={
         'fold' ,				// fold/unfold event
         'sx', 'sy',				// scroll events
         'xy', 'wh', 'whc',		// resize/reflow events
-        'o',					// overlap (i.e., collision)
         'k', 'ku',				// keyboard key-down, key-up events
         'pd', 'pu',				// pointer-device down/up events (e.g. mouse-button-down, mouse-button-up or touch-start, touch-end)
         'pc', 'pcc',			// pointer-device click/tap and double-click/double-tap events
@@ -96,7 +93,7 @@ const IMPLEMENTED={
     // win modal option
     mod:[],
     // data and data points
-    plt:['col','xy','line','box','ohlc','bar'],
+    plt:['col','xy','line','box','ohlc'],
     axisx:['cap','v','min','max','step','unit'],
     axisy:['cap','v','min','max','step','unit'],
     x:[],err:[],
@@ -525,6 +522,7 @@ addCSS(`
     --colorInput: #eee;
     --colorInputText: #000;
     --colorLink: #06d;
+    --colorData: rgba(0,130,255,0.75);
 }
 * {scrollbar-width:thin;box-sizing:border-box;z-index:1;white-space:pre-wrap}
 *:before {box-sizing:border-box}
@@ -1584,11 +1582,11 @@ gui._Item.prototype._ctxShow=function(e){
     ctxDiv.style.display='block';
     currentItemDiv.classList.add('ctxShown');
     if(currentItem._prop.ctx.toggle){
-        ctxDiv.style.left=currentItemDiv.getBoundingClientRect().left;
-        ctxDiv.style.top=currentItemDiv.getBoundingClientRect().bottom;
+        ctxDiv.style.left=currentItemDiv.getBoundingClientRect().left+'px';
+        ctxDiv.style.top=currentItemDiv.getBoundingClientRect().bottom+'px';
     }else{
-        ctxDiv.style.left=e.clientX+1;
-        ctxDiv.style.top=e.clientY+1;
+        ctxDiv.style.left=e.clientX+1+'px';
+        ctxDiv.style.top=e.clientY+1+'px';
     }
     ctxDiv.focus();
     currentItem._ctxHide=function(){
@@ -1742,7 +1740,6 @@ gui.EVENTS={
     v:{input:function(e){this._item._event('v',this._item._prop.v)}},
     sx:{scroll:gui.checkSx},
     sy:{scroll:gui.checkSy},
-    o:null, //defined above
     fold:null, //defined in gui.Item.prototype.fold
     fcs:{"focus":function(e){this._item._event('fcs',1)},"blur":function(e){this._item._event('fcs',0)}},
     po:{"mouseenter":function(e){this._item._event('po',1)},"mouseleave":function(e){this._item._event('po',0)}},
@@ -2167,7 +2164,7 @@ gui.Hold.prototype._classDefaults={c:'hold',v:false};
 // selectable options (checkboxes/radiobuttons)
 addCSS(`
 [c='opt'] {display:block;text-align:center}
-[c='opt'] > .title {display:inline-block}
+[c='opt'] > .title {display:inline-block !important}
 [c='opt']:not([v="true"]):before {content:"\\2610" " ";display:inline}
 [c='opt'][v="true"]:before {content:"\\2611" " ";display:inline}
 [c='opt'][grp]:not([v="true"]):before {content:"\\029be" " ";display:inline}
@@ -2263,7 +2260,6 @@ input:not([disabled])::file-selector-button {border:solid 1px var(--colorBorder)
 gui.File=class extends gui.Txt{
     _initContent(){
         this._element=document.createElement('div');
-        console.log(this._element)
         this._title=this._element.appendChild(document.createElement('div'));
         this._content=this._element.appendChild(document.createElement('input'));
         this._frame=this._content;
@@ -2366,8 +2362,8 @@ gui.Win=class extends gui.Bin{
         this._parent._element.classList.add('haswindows');
         this._parent._childWindowX=(this._parent._childWindowX||0)+25;
         this._parent._childWindowY=(this._parent._childWindowY||0)+25;
-        this._element.style.left=this._parent._childWindowX+this._parent._content.scrollLeft;
-        this._element.style.top=this._parent._childWindowY+this._parent._content.scrollTop;
+        this._element.style.left=this._parent._childWindowX+this._parent._content.scrollLeft+'px';
+        this._element.style.top=this._parent._childWindowY+this._parent._content.scrollTop+'px';
         this._element.addEventListener('mousedown',gui.focusedToTop);
         dragElement(this._element,this._title,'controlTitle');
     }
@@ -2593,31 +2589,42 @@ gui.GridRow.prototype._classDefaults={c:'bin',v:[]};
 
 
 //////////////////////////////////////////////////////////////////////////////
-// data
+// data, datapoints
 addCSS(`
-[c="data"] {--dpWidth:10px;width:fit-content;border:solid 1px #ddd;background-color:white;color:#444;}
+  /* plot (with multiple data series inside) */
+[c="plot"] {width:fit-content;border:solid 1px #ddd;background-color:white;color:#444;}
+[c="plot"] > .title {text-align:center}
+[c="plot"] [c="data"] > .title {display:none}
+[c="plot"] > .content {display: grid}
+[c="plot"] [c="data"] {grid-column: 1;grid-row: 1;background-color:transparent !important}
+[c="plot"] [c="data"]:nth-child(1) {--colorData:blue}
+[c="plot"] [c="data"]:nth-child(2) {--colorData:orange}
+[c="plot"] [c="data"]:nth-child(3) {--colorData:green}
+[c="plot"] [c="data"]:nth-child(4) {--colorData:red}
+[c="plot"] [c="data"]:nth-child(5) {--colorData:purple}
+[c="plot"] [c="data"]:nth-child(6) {--colorData:brown}
+[c="plot"] [c="data"]:nth-child(7) {--colorData:pink}
+[c="plot"] [c="data"]:nth-child(8) {--colorData:gray}
+[c="plot"] [c="data"]:nth-child(9) {--colorData:olive}
+[c="plot"] [c="data"]:nth-child(10) {--colorData:cyan}
+  /* data and data points */
+[c="data"] {width:fit-content;border:solid 1px #ddd;background-color:white;color:#444;}
 [c="data"] > .title {text-align:center}
 [c="data"] > .frame {overflow:auto}
 [c="data"] > .frame > .content {width:300;height:200;margin:10px;padding:0px;overflow:visible}
 [c="data"] > .frame > .content {border-left:solid 1px black;border-bottom:solid 1px black;}
-
-[c="data"] svg {position:absolute;top:0px;left:0px;width:100%;height:100%;}
-
-[c="dp"] {position:absolute;background-color:rgba(50,50,50,0.5);min-width:2px;min-height:2px;transform:translateX(-50%);margin:0px;}
+[c="data"] svg {position:absolute;top:0px;left:0px;width:100%;height:100%;stroke:var(--colorData)}
+[c="dp"] {position:absolute;background-color:var(--colorData);min-width:2px;min-height:2px;transform:translateX(-50%);margin:0px;}
 [c="dp"] .title > span {padding-left:3px;}
-
-[c="data"]:not([plt="xy"]):not([plt="line"]):not([plt="box"]):not([plt="ohlc"]):not([plt="bar"]) [c="dp"] {bottom:0;width:var(--dpWidth)}
-
+  /* column chart (default) */
+[c="data"]:not([plt="xy"]):not([plt="line"]):not([plt="box"]):not([plt="ohlc"]) [c="dp"] {bottom:0;width:var(--dpWidth)}
+  /* scatter and line charts */
+[plt="xy"] {--ef:0px}
 [plt="xy"] [c="dp"],[plt="line"] [c="dp"] {width:1px;height:1px;border-radius:100%;transform:translate(-50%,50%);}
-[plt="xy"] [c="dp"] {border:solid 3px rgba(50,50,50,0.5)}
-[plt="bar"] [c="dp"] {height:1em;transform:none;border-right:solid 1px black;}
-[plt="bar"] > .frame > .content {height:1em}
-
-[c="data"]:not([plt="bar"]):not([plt="ohlc"]) [c="dp"]:before {content:'';width:1px;height:var(--errTop);background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
-[c="data"]:not([plt="bar"]):not([plt="ohlc"]):not([plt="col"]) [c="dp"]:after {content:'';width:1px;height:var(--errBottom);background:#444;position:absolute;top:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
-
+[plt="xy"] [c="dp"] {border:solid calc(3px + var(--ef)) var(--colorData)}
+  /* box chart */
 [plt="box"] [c="dp"] {border-radius:0;width:var(--dpWidth);transform:translateX(-50%) translateY(var(--boxBottomSize));}
-
+  /* ohlc chart */
 [plt="ohlc"] [c="dp"] {width:7px;background-color:transparent;border-color:green;--af:0px}
 [plt="ohlc"] [c="dp"] > .frame {width:7px;height:1px;border-color:inherit;border-width:1px;border-bottom-style:solid;display:block}
 [plt="ohlc"] [c="dp"]:before {content:'';background-color:transparent;border-color:inherit;border-width:1px;border-right-style:solid;width:4.5px;display:block;height:var(--errTop);position:absolute;bottom:calc(1px - var(--af));left:-1.5px}
@@ -2625,15 +2632,18 @@ addCSS(`
 [plt="ohlc"] [c="dp"]:after {content:'';background-color:transparent;border-color:inherit;border-width:1px;border-right-style:solid;width:3.5px;display:block;height:var(--errBottom);position:absolute;top:calc(1px + var(--af));left:0px;}
 [plt="ohlc"] [c="dp"][af="0"] , [plt="ohlc"] [c="dp"]:not([af]) {border-color:black}
 [plt="ohlc"] [c="dp"][af^="-"] {border-color:red}
-
-[c="data"][axisx] > .frame {padding-bottom:2em}
+  /* error bars */
+[c="data"]:not([plt="ohlc"]) [c="dp"]:before {content:'';width:1px;height:var(--errTop);background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
+[c="data"]:not([plt="ohlc"]):not([plt="col"]) [c="dp"]:after {content:'';width:1px;height:var(--errBottom);background:#444;position:absolute;top:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
+  /* axes */
+[c="data"][axisx] > .frame, [axisx] [c="data"] > .frame {padding-bottom:2em}
 .axisX {height:2.5em;border:none;left:0px;top:100%;width:100%;position:absolute;margin:0px;overflow:visible;border-top:solid 1px gray}
 .axisXmarker {position:absolute;font-size:10px;top:3px;margin:0px;border:none;padding:0px;min-width:10px;min-height:10px}
 .axisXmarker[style~="left:"] {transform:translateX(-50%)}
 .axisXmarker[style~="right:"] {transform:translateX(50%)}
 .axisXmarker:before {content:'';width:1px;height:7px;background:#444;position:absolute;bottom:100%;left:50%;margin:0px;border:none;padding:0px;margin-left:-0.5px}
 .axisX > .title {text-align:center;position:relative;margin-top:1.2em;width:100%;font-size:10pt;display:block !important}
-[c="data"][axisy] > .frame {padding-left:2em;padding-top:1em;}
+[c="data"][axisy] > .frame, [axisy] [c="data"] > .frame {padding-left:2em;padding-top:1em;}
 .axisY {border:none;right:100%;top:0;height:100%;position:absolute;overflow:visible;width:1.1em;margin:0px;border-right:solid 1px gray}
 .axisYmarker {position:absolute;font-size:8px;right:4px;margin:0px;border:none;padding:0px;min-height:10px}
 .axisYmarker[style~="top:"] {transform:translateY(-50%)}
@@ -2641,17 +2651,32 @@ addCSS(`
 .axisYmarker:after {content:'';height:1px;width:7px;background:#444;position:absolute;right:-8px;top:50%;margin:0px;border:none;padding:0px;margin-top:-0.5px}
 .axisY > .title {right:100%;text-align:center;height:100%;writing-mode:vertical-rl;transform:rotate(180deg);font-size:10pt;display:block !important}
 `)
+gui.getAxisValuesOffsets=function(axisProps,min,max,steps){
+    if(axisProps.v){
+        return [axisProps.v,[...axisProps.v.keys()]];
+    }
+    var offset=[],values=[];
+    if(axisProps.step){
+        var step=axisProps.step;
+    }else{
+        var step=(max-min)/((steps||6)-1);
+        let precision=Math.max(min.toString().split('.')[1]?.length||0,max.toString().split('.')[1]?.length||0);
+        if(step.toString().split('.')[1]?.length>(precision+1))
+            step=parseFloat(step.toFixed(precision+1));
+    }
+    for(let val=min,i=0;i<=(max-min)/step;i++){ // using integer counter to avoid floating point precision problems
+        values.push((gui.TYPES[axisProps.c]||gui.Num).prototype._display(val,step,min||0));
+        offset.push(val);
+        val+=step;
+    }
+    return [values,offset];
+}
 gui.Data=class extends gui.Bin{
     _initContent(){
         this._element=document.createElement('div');
         this._title=this._element.appendChild(document.createElement('div'));
         this._frame=this._element.appendChild(document.createElement('div'));
         this._content=this._frame.appendChild(document.createElement('div'));
-        // this._content=this._frame.appendChild(createSVG('svg'));
-        // this._content.setAttribute('viewBox',"0 0 100 100");
-        // this._content.setAttribute('preserveAspectRatio','none');
-        // this._content.setAttribute('width',"100");
-        // this._content.setAttribute('height',"100");
         this._parent._placeChildElement(this);
         this._resetRatios();
     }
@@ -2679,74 +2704,93 @@ gui.Data=class extends gui.Bin{
         }
     }
     _scheduleAxisXUpdate(){
-        clearTimeout(this._axisXupdateTimeout);
-        var item=this;
-        this._axisXupdateTimeout=setTimeout(()=>{item._axisXUpdate()},20);
+        var axisControllingItem=this._parent._prop.c==='plot'?this._parent:this;
+        clearTimeout(axisControllingItem._axisXupdateTimeout);
+        axisControllingItem._axisXupdateTimeout=setTimeout(()=>{axisControllingItem._axisXUpdate()},20);
     }
     _scheduleAxisYUpdate(){
-        clearTimeout(this._axisYupdateTimeout);
-        var item=this;
-        this._axisYupdateTimeout=setTimeout(()=>{item._axisYUpdate()},20);
+        var axisControllingItem=this._parent._prop.c==='plot'?this._parent:this;
+        clearTimeout(axisControllingItem._axisYupdateTimeout);
+        axisControllingItem._axisYupdateTimeout=setTimeout(()=>{axisControllingItem._axisYUpdate()},20);
+    }
+    _getXs(){
+        return this._children.map(child=>typeof(child._prop.x)==='number'?child._prop.x:child._getIndex());
     }
     _axisXUpdate(){
-        // default min/max
-        if(!this._minX && !this._maxX){
-            this._maxX=this._children.length-1;
-        }
-        // check axisx
+        var xs=this._getXs();
+        // calculate min-max bounds
         if(this._prop.axisx){
-            if(typeof(this._prop.axisx.min)==='number')this._minX=this._prop.axisx.min; //TODO: don't do this if there is axisx.v
-            if(typeof(this._prop.axisx.max)==='number')this._maxX=this._prop.axisx.max;
-            this._axisXvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX);
-            this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets[1].length-1];
+            if(this._prop.axisx.v){
+                this._axisXvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisx);
+                this._minX=0;
+                this._maxX=this._prop.axisx.v.length;
+            }else{
+                this._minX=typeof(this._prop.axisx.min)==='number'?this._prop.axisx.min:Math.min(...xs);
+                this._maxX=typeof(this._prop.axisx.max)==='number'?this._prop.axisx.max:Math.max(...xs);
+                this._axisXvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX,xs.length);
+                // this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets[1].length-1];
+            }
+        }else{
+            this._minX=Math.min(...xs);
+            this._maxX=Math.max(...xs);
         }
         // calc x-axis spacing
         var boundRect=this._content.getBoundingClientRect();
         if(this._prop.plt==='col'||this._prop.plt==='box'){
-            var xs=this._children.map(child=>typeof(child._prop.x)==='number'?child._prop.x:child._getIndex());
             xs.sort((a,b)=>a-b);
             var minDist=xs.reduce(([min,last],a)=>[Math.min(min,a-last),a],[9e9,-9e9])[0];
             var neededSpace=this._maxX-this._minX+minDist;
             this._pPerX=(boundRect.width-20)/neededSpace;
             this._padX=10+this._pPerX*minDist/2;
             this._element.style.setProperty('--dpWidth',this._pPerX*minDist-10);
-        }else if(this._prop.plt==='bar'){
-            this._padX=0;
-            this._pPerX=boundRect.width/(this._maxX-this._minX);
         }else{
             this._pPerX=(boundRect.width-20)/(this._maxX-this._minX);
             this._padX=10;
         }
         // redraw based on new spacing
-        console.log('updated','min',this._minX,'max',this._maxX,'ppx',this._pPerX,'boundRect.width',boundRect.width)
         this._redrawX();
     }
+    _getMinY(){
+        var min=0,err;
+        for(var dataPoint of this._children){
+            err=typeof(dataPoint._prop.err)==='number'?dataPoint._prop.err:(dataPoint._prop?.err?.constructor===Array?Math.max(dataPoint._prop.err[1]||0,dataPoint._prop.err[3]||0):0);
+            min=Math.min(min,dataPoint._prop.v-err);
+        }
+        return Math.floor(min);
+    }
+    _getMaxY(){
+        var max=-9e9,err;
+        for(var dataPoint of this._children){
+            err=typeof(dataPoint._prop.err)==='number'?dataPoint._prop.err:(dataPoint._prop?.err?.constructor===Array?Math.max(dataPoint._prop.err[0]||0,dataPoint._prop.err[2]||0):0);
+            max=Math.max(max,dataPoint._prop.v+err);
+        }
+        return Math.ceil(max);
+    }
     _axisYUpdate(){
-        // check axisy
+        // calculate min-max bounds
         if(this._prop.axisy){
-            if(typeof(this._prop.axisy.min)==='number')this._minY=this._prop.axisy.min; //TODO: don't do this if there is axisy.v
-            if(typeof(this._prop.axisy.max)==='number')this._maxY=this._prop.axisy.max;
-            this._axisYvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisy,this._minY,this._maxY);
-            this._maxY=this._axisYvaluesAndOffsets[1][this._axisYvaluesAndOffsets[1].length-1];
-        }
-        // calc y-axis spacing
-        var boundRect=this._content.getBoundingClientRect();
-        if(this._prop.plt==='bar'){
-            this._padX=0;
-            this._pPerX=boundRect.width/(this._maxX-this._minX);
+            if(this._prop.axisy.v){
+                this._axisYvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisy);
+                this._minY=0;
+                this._maxY=this._prop.axisy.v.length;
+            }else{
+                this._minY=typeof(this._prop.axisy.min)==='number'?this._prop.axisy.min:this._getMinY();
+                this._maxY=typeof(this._prop.axisy.max)==='number'?this._prop.axisy.max:this._getMaxY();
+                this._axisYvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisy,this._minY,this._maxY);
+                // this._maxY=this._axisYvaluesAndOffsets[1][this._axisYvaluesAndOffsets[1].length-1];
+            }
         }else{
-            var drawHeight=boundRect.height-this._padTop;
-            this._pPerY=drawHeight/(this._maxY-this._minY);
+            this._minY=this._getMinY();
+            this._maxY=this._getMaxY();
         }
+        // calculate pPerY
+        var boundRect=this._content.getBoundingClientRect();
+        var drawHeight=boundRect.height-this._padTop;
+        this._pPerY=drawHeight/(this._maxY-this._minY);
+        // redraw based on new spacing
         this._redrawY();
-        // var max=Math.ceil(Math.max(...this._children.map(child=>child._prop.v+(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[0]||0:0)))));
-        // var min=Math.min(0,...this._children.map(child=>child._prop.v-(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[1]||0:0))));
-        // if(pPerY!==this._pPerY || min!==this._minY){
-        // }
-        // console.log(Math.max(...this._children.map(child=>child._prop.v+(typeof(child._prop.err)==='number'?child._prop.err:(child._prop.err&&child._prop.err.constructor===Array?child._prop.err[0]||0:0)))))
     }
     _redrawX(){
-        console.log('redrawing','min',this._minX,'max',this._maxX,'ppx',this._pPerX)
         if(this._axisX)this._drawAxisX();
         this._children.forEach(child=>child._redrawX());
     }
@@ -2762,27 +2806,11 @@ gui.Data=class extends gui.Bin{
         if(!this._line){
             this._line=this._svg.appendChild(createSVG('polyline'));
         }
-        var canvasHeight=this._svg.getBoundingClientRect().height;
-        // var points=this._children.map(child=>[(child._prop.x||child._getIndex())*this._pPerX+this._padX,canvasHeight-child._prop.v*this._pPerY]);
-        var points=this._children.map(child=>[parseFloat(child._element.style.left),canvasHeight-parseFloat(child._element.style.bottom)]);
-        this._line.setAttribute('points',points);
-    }
-    _getAxisValuesOffsets(axisProps,min,max){
-        if(axisProps.v){
-            return [axisProps.v,[...axisProps.v.keys()]];
-        }
-        var offset=[],values=[];
-        var step=axisProps.step||((max-min)/10);
-        console.log(step)
-        for(var val=min;val<max+step;val+=step){
-            values.push((gui.TYPES[axisProps.c]||gui.Num).prototype._display(val,step,min||0));
-            offset.push(val);
-        }
-        // if(!offset.includes(axisSize)){
-        //     values.push('');
-        //     offset.push(axisSize);
-        // }
-        return [values,offset];
+        try{
+            var canvasHeight=this._svg.getBoundingClientRect().height;
+            var points=this._children.map(child=>[parseFloat(child._element.style.left),canvasHeight-parseFloat(child._element.style.bottom)]);
+            this._line.setAttribute('points',points);
+        }catch(e){}
     }
     _drawAxisX(){
         //remove old markers
@@ -2790,31 +2818,15 @@ gui.Data=class extends gui.Bin{
             if(this._axisX.children[i].className==='axisXmarker')
                 this._axisX.children[i].remove();
         }
-        //automatically fill in missing coordinates or values
-        // var axisProps=this._prop.axisx;
-        // var axis=this._getAxisValuesOffsets(axisProps,this._minX,this._maxX);
-        // this._maxX=axis[1][axis.length-1];
         //add new markers
-        var [values,offsets]=this._axisXvaluesAndOffsets;
+        var [values,offsets]=this._axisXvaluesAndOffsets||this._parent._axisXvaluesAndOffsets;
         for(var i=0;i<values.length;i++){
             var d=this._axisX.appendChild(document.createElement('div'));
             d.innerHTML=values[i];
-            d.style.left=this._padX+(offsets[i]-this._minX)*this._pPerX;
+            d.style.left=(this._parent._padX||this._padX)+(offsets[i]-this._minX)*this._pPerX+'px';
             d.setAttribute('title',d.innerHTML);
             d.classList.add('axisXmarker');
         }
-        //scroll functionality
-        // if(this._scrollAxisX){
-        //     if(this._frame.offsetWidth>=this._frame.scrollWidth){
-        //         this._scrollAxisX=false;
-        //         this._axisX.style.overflow='visible';
-        //         this._frame.removeEventListener('scroll',gui.scrollAxisX);
-        //     }
-        // }else if(this._frame.offsetWidth<this._frame.scrollWidth){
-        //     this._scrollAxisX=true;
-        //     this._axisX.style.overflow='hidden';
-        //     this._frame.addEventListener('scroll',gui.scrollAxisX);
-        // }
     }
     _drawAxisY(){
         //remove old markers
@@ -2822,35 +2834,21 @@ gui.Data=class extends gui.Bin{
             if(this._axisY.children[i].className==='axisYmarker')
                 this._axisY.children[i].remove();
         }
-        //automatically fill in missing coordinates or values
-        // var axisProps=this._prop.axisy;
-        // var axis=this._getAxisValuesOffsets(axisProps,this._rectch(),this._prop.ih||this._prop.h||0);
         //add new markers
-        var [values,offsets]=this._axisYvaluesAndOffsets;
+        var [values,offsets]=this._axisYvaluesAndOffsets||this._parent._axisYvaluesAndOffsets;
         for(var i=0;i<values.length;i++){
             var d=this._axisY.appendChild(document.createElement('div'));
             d.innerHTML=values[i];
-            d.style.bottom=(offsets[i]-this._minY)*this._pPerY;
+            d.style.bottom=(offsets[i]-this._minY)*this._pPerY+'px';
             d.setAttribute('title',d.innerHTML);
             d.classList.add('axisYmarker');
         }
-        //scroll functionality
-        // if(this._scrollAxisY){
-        //     if(this._frame.offsetHeight>=this._frame.scrollHeight){
-        //         this._scrollAxisY=false;
-        //         this._axisY.style.overflow='visible';
-        //         this._frame.removeEventListener('scroll',gui.scrollAxisY);
-        //     }
-        // }else if(this._frame.offsetHeight<this._frame.scrollHeight){
-        //     this._scrollAxisY=true;
-        //     this._axisY.style.overflow='hidden';
-        //     this._frame.addEventListener('scroll',gui.scrollAxisY);
-        // }
     }
     axisx(v){
         if(v===null && this._axisX){
             this._axisX.remove();
             delete this._axisX;
+            this._scheduleAxisXUpdate();
         }else if(v && v.constructor===Object){
             if(!this._axisX){
                 this._axisX=this._content.appendChild(document.createElement('div'));
@@ -2869,12 +2867,7 @@ gui.Data=class extends gui.Bin{
                     this._axisX._title.remove();
                 }
             }
-            if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v){
-                // if(typeof(v.min)==='number')this._minX=v.min;
-                // if(typeof(v.max)==='number')this._maxX=v.max;
-                // this._axisXvaluesAndOffsets=this._getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX);
-                // this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets.length-1];
-                // setTimeout(()=>this._drawAxisX(),5);
+            if('x' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v){
                 this._scheduleAxisXUpdate();
             }
         }
@@ -2883,6 +2876,7 @@ gui.Data=class extends gui.Bin{
         if(v===null && this._axisY){
             this._axisY.remove();
             delete this._axisY;
+            this._scheduleAxisYUpdate();
         }else if(v && v.constructor===Object){
             if(!this._axisY){
                 this._axisY=this._content.appendChild(document.createElement('div'));
@@ -2901,11 +2895,9 @@ gui.Data=class extends gui.Bin{
                     this._axisY._title.remove();
                 }
             }
-            if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v || 'unit' in v || 'bb' in v || 'tag' in v){
-                // setTimeout(()=>this._drawAxisY(),5);
-                this._scheduleAxisXUpdate();
+            if('y' in v || 'v' in v || 'max' in v || 'min' in v || 'step' in v || 'c' in v){
+                this._scheduleAxisYUpdate();
             }
-            // this._moveTriggers.axisy=()=>{this._drawAxisY()};
         }
     }
     plt(v){
@@ -2913,7 +2905,9 @@ gui.Data=class extends gui.Bin{
             this._svg.remove();
             delete this._svg;
         }
-        this._children.forEach(item=>item._recalc());
+        // this._children.forEach(item=>item._recalc());
+        this._scheduleAxisXUpdate();
+        this._scheduleAxisYUpdate();
     }
 }
 gui.Data.prototype._classDefaults={c:'data',v:[]};
@@ -2924,13 +2918,8 @@ gui.Dp=class extends gui.Num{
         this._title=this._frame=this._content=this._element.appendChild(document.createElement('div'));
         this._parent._placeChildElement(this);
     }
-    _recalc(){
-        this.x(this._prop.x);
-        this.v(this._prop.v);
-        this.err(this._prop.err);
-    }
     _redrawX(){
-        if(this._parent._prop.plt!=='bar')this._element.style.left=this._element.style.width='';
+        this._element.style.left=this._element.style.width='';
         this.x(this._prop.x,true);
     }
     _redrawY(){
@@ -2940,69 +2929,33 @@ gui.Dp=class extends gui.Num{
     }
     v(v,redraw){
         //TODO: if(!this._parent._pPerY){this._parent._scheduleAxisYUpdate();return;}
-        this._element.setAttribute('title',v);
-        let p=(v-this._parent._minY)*this._parent._pPerY;
+        this._setAttr('title',v);
+        let p=(v-this._parent._minY)*this._parent._pPerY+'px';
         let plt=this._parent._prop.plt;
         if(plt==='xy' || plt==='box' || plt==='ohlc'){
             this._element.style.bottom=p;
         }else if(plt==='line'){
             this._element.style.bottom=p;
             this._parent._drawLines();
-        }else if(this._parent._prop.plt==='bar'){
-            this._element.style.width=v*this._parent._pPerX;
-            var lastDp=this._element.previousSibling;
-            var left=typeof(this._prop.x)==='number'?this._prop.x:(lastDp?lastDp._item._rightBound:0);
-            this._rightBound=left+v;
         }else{
             this._element.style.height=p;
         }
         if(!redraw){
-            if(this._parent._prop.plt==='bar'){
-                if(this._rightBound>this._parent._maxX){
-                    this._parent._maxX=left+v;
-                    this._parent._scheduleAxisXUpdate();
-                }
-            }else{
-                var boundsY=this._boundsY||[0,0];
-                if(v+boundsY[0]>this._parent._maxY){
-                    this._parent._maxY=v+boundsY[0];
-                    this._parent._scheduleAxisYUpdate();
-                }
-                if(v-boundsY[1]<this._parent._minY){
-                    this._parent._minY=v-boundsY[1];
-                    this._parent._scheduleAxisYUpdate();
-                }
-            }
+            this._parent._scheduleAxisYUpdate();
         }
     }
     x(v,redraw){
         //TODO: if(!this._parent._pPerX){this._parent._scheduleAxisYUpdate();return;}
         if(typeof(v)!=='number'){
-            if(this._parent._prop.plt==='bar'){
-                var prev=this._getIndex()-1;
-                v=this._parent._children[prev]?this._parent._children[prev]._rightBound:0;
-            }else{
-                v=this._getIndex();
-            }
+            v=this._getIndex();
         }
-        this._element.style.left=this._parent._padX+(v-this._parent._minX)*this._parent._pPerX;
+        this._element.style.left=this._parent._padX+(v-this._parent._minX)*this._parent._pPerX+'px';
         if(this._parent._prop.plt==='line')this._parent._drawLines();
-        if(!redraw && typeof(this._parent._prop.axisx?.min)!=='number'){
-            if(v<this._parent._minX){
-                this._parent._minX=v;
-                this._parent._scheduleAxisXUpdate();
-            }
-        }
-        if(!redraw && typeof(this._parent._prop.axisx?.max)!=='number'){
-            if(this._parent._prop.plt==='bar')v+=this._prop.v;
-            if(v>this._parent._maxX){
-                this._parent._maxX=v;
-                this._parent._scheduleAxisXUpdate();
-            }
+        if(!redraw){
+            this._parent._scheduleAxisXUpdate();
         }
     }
     err(v,redraw){
-        // TODO: i think err is drawn from end of the point, rather than from its middle, so it should account for size of point
         if(v){
             if(v.constructor===Number)v=[v,v];
             if(v.constructor===Array){
@@ -3011,11 +2964,11 @@ gui.Dp=class extends gui.Num{
                     this._element.style.height=(v[0]+v[1])*this._parent._pPerY;
                     this._element.style.setProperty('--errTop',v[2]*this._parent._pPerY);
                     this._element.style.setProperty('--errBottom',v[3]*this._parent._pPerY);
-                    this._boundsY=[Math.max(v[2],v[0]),Math.max(v[3],v[1])];
+                    // this._boundsY=[Math.max(v[2],v[0]),Math.max(v[3],v[1])];
                 }else{
                     this._element.style.setProperty('--errTop',v[0]*this._parent._pPerY);
                     this._element.style.setProperty('--errBottom',v[1]*this._parent._pPerY);
-                    this._boundsY=[v[0],v[1]];
+                    // this._boundsY=[v[0],v[1]];
                     if(this._prop.af && this._parent._prop.plt==='ohlc'){
                         this.af(this._prop.af);
                     }
@@ -3027,15 +2980,16 @@ gui.Dp=class extends gui.Num{
             this._element.style.setProperty('--boxBottomSize',0);
         }
         if(!redraw){
-            var boundsY=this._boundsY||[0,0];
-            if(this._prop.v+boundsY[0]>this._parent._maxY){
-                this._parent._maxY=this._prop.v+boundsY[0];
-                this._parent._scheduleAxisYUpdate();
-            }
-            if(this._prop.v-boundsY[1]<this._parent._minY){
-                this._parent._minY=this._prop.v-boundsY[1];
-                this._parent._scheduleAxisYUpdate();
-            }
+            this._parent._scheduleAxisYUpdate();
+            // var boundsY=this._boundsY||[0,0];
+            // if(this._prop.v+boundsY[0]>this._parent._maxY){
+            //     this._parent._maxY=this._prop.v+boundsY[0];
+            //     this._parent._scheduleAxisYUpdate();
+            // }
+            // if(this._prop.v-boundsY[1]<this._parent._minY){
+            //     this._parent._minY=this._prop.v-boundsY[1];
+            //     this._parent._scheduleAxisYUpdate();
+            // }
         }
     }
     af(v){
@@ -3046,13 +3000,154 @@ gui.Dp=class extends gui.Num{
             this._element.style.setProperty('--errBottom',parseFloat(this._element.style.getPropertyValue('--errBottom'))-v+'px');
         }
     }
+    ef(v){
+        if(this._parent._prop.plt==='xy'){
+            if(typeof(v)==='number'){
+                v=Math.min(1,Math.max(0,v)); // cap value 
+                v=v*10; // represent ef (value should be 0 to 1) as the size of point, between 3px and 11px
+                this._element.style.setProperty('--ef',v+'px');
+            }else{
+                this._element.style.removeProperty('--ef');
+            }
+        }
+    }
     i(v){
         super.i(v);
-        this._parent._redrawX();
-        // this._parent._scheduleAxisXUpdate();
+        this._parent._children.forEach(child=>child._redrawX());
     }
 }
 gui.Dp.prototype._classDefaults={c:'dp',v:0};
+gui.Plot=class extends gui.Bin{
+    _newChild(prop){
+        var type=gui.getType(prop);
+        // only add child if it's a datapoint
+        if(!type || type==gui.Bin || type==gui.Data){
+            var child=new gui.Data(prop,this);
+            if(!this._children.includes(child))
+                this._children.push(child);
+        }
+    }
+    _scheduleAxisXUpdate(){
+        var axisControllingItem=this;
+        clearTimeout(axisControllingItem._axisXupdateTimeout);
+        axisControllingItem._axisXupdateTimeout=setTimeout(()=>{axisControllingItem._axisXUpdate()},20);
+    }
+    _scheduleAxisYUpdate(){
+        var axisControllingItem=this;
+        clearTimeout(axisControllingItem._axisYupdateTimeout);
+        axisControllingItem._axisYupdateTimeout=setTimeout(()=>{axisControllingItem._axisYUpdate()},20);
+    }
+    axisx(v){
+        this._children[0].axisx(v);
+    }
+    axisy(v){
+        this._children[0].axisy(v);
+    }
+    _getMinX(){
+        return Math.min(...this._children.map(child=>Math.min(...child._getXs())));
+    }
+    _getMaxX(){
+        return Math.max(...this._children.map(child=>Math.max(...child._getXs())));
+    }
+    _axisXUpdate(){
+        // calculate min-max bounds
+        if(this._prop.axisx){
+            if(this._prop.axisx.v){
+                this._axisXvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisx);
+                this._minX=0;
+                this._maxX=this._prop.axisx.v.length;
+            }else{
+                this._minX=typeof(this._prop.axisx.min)==='number'?this._prop.axisx.min:this._getMinX();
+                this._maxX=typeof(this._prop.axisx.max)==='number'?this._prop.axisx.max:this._getMaxX();
+                this._axisXvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisx,this._minX,this._maxX,Math.max(...this._children.map(child=>child._children.length)));
+                // this._maxX=this._axisXvaluesAndOffsets[1][this._axisXvaluesAndOffsets[1].length-1];
+            }
+        }else{
+            this._minX=this._getMinX();
+            this._maxX=this._getMaxX();
+        }
+        // calc x-axis spacing
+        var boundRect=this._children[0]._content.getBoundingClientRect();
+        var colChildren=this._children.filter(child=>child._prop.plt==='col'||child._prop.plt==='box');
+        if(colChildren.length){
+            var minDist=9e9,xs;
+            for(let child of colChildren){
+                xs=child._getXs();
+                xs.sort((a,b)=>a-b);
+                minDist=Math.min(minDist,xs.reduce(([min,last],a)=>[Math.min(min,a-last),a],[9e9,-9e9])[0]);
+                console.log(''+xs,minDist);
+            }
+            var neededSpace=this._maxX-this._minX+minDist;
+            this._pPerX=(boundRect.width-20)/neededSpace;
+            this._padX=10+this._pPerX*minDist/2;
+            var colsWidth=this._pPerX*minDist-10;
+            var colWidth=colsWidth/colChildren.length;
+            this._element.style.setProperty('--dpWidth',colWidth);
+            // set different padding for each col child
+            for(let i=0;i<colChildren.length;i++){
+                let child=colChildren[i];
+                child._padX=this._padX+i*colWidth-colsWidth/2+colWidth/2;
+            }
+            // set default padding
+            this._children.filter(child=>child._prop.plt!=='col'&&child._prop.plt!=='box').forEach(child=>{
+                child._padX=this._padX;
+            });
+        }else{
+            this._pPerX=(boundRect.width-20)/(this._maxX-this._minX);
+            this._padX=10;
+            // set default padding
+            this._children.forEach(child=>{
+                child._padX=this._padX;
+            });
+        }
+        // redraw based on new spacing
+        this._children.forEach(child=>{
+            child._minX=this._minX;
+            child._maxX=this._maxX;
+            child._pPerX=this._pPerX;
+            child._redrawX();
+        });
+}
+    _getMinY(){
+        return Math.min(...this._children.map(child=>child._getMinY()));
+    }
+    _getMaxY(){
+        return Math.max(...this._children.map(child=>child._getMaxY()));
+    }
+    _axisYUpdate(){
+        // calculate min-max bounds
+        if(this._prop.axisy){
+            if(this._prop.axisy.v){
+                this._axisYvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisy);
+                this._minY=0;
+                this._maxY=this._prop.axisy.v.length;
+            }else{
+                this._minY=typeof(this._prop.axisy.min)==='number'?this._prop.axisy.min:this._getMinY();
+                this._maxY=typeof(this._prop.axisy.max)==='number'?this._prop.axisy.max:this._getMaxY();
+                this._axisYvaluesAndOffsets=gui.getAxisValuesOffsets(this._prop.axisy,this._minY,this._maxY);
+                // this._maxY=this._axisYvaluesAndOffsets[1][this._axisYvaluesAndOffsets[1].length-1];
+            }
+        }else{
+            this._minY=this._getMinY();
+            this._maxY=this._getMaxY();
+        }
+        // calculate pPerY
+        var boundRect=this._children[0]._content.getBoundingClientRect();
+        var drawHeight=boundRect.height-10;
+        this._pPerY=drawHeight/(this._maxY-this._minY);
+        console.log('bounds',this._minY,this._maxY)
+        console.log(boundRect.height,drawHeight,this._pPerY)
+        // redraw based on new spacing
+        this._children.forEach(child=>{
+            child._minY=this._minY;
+            child._maxY=this._maxY;
+            child._pPerY=this._pPerY;
+            child._redrawY();
+        });
+    }
+}
+gui.Plot.prototype.axisx=gui.Plot.prototype.axisx;
+gui.Plot.prototype._classDefaults={c:'plot',v:[]};
 //////////////////////////////////////////////////////////////////////////////
 
 
